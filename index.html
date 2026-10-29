@@ -1,0 +1,3538 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="icon" href="assets/risk-radar.svg" type="image/svg+xml">
+  <title>智汇金 · 钱包天气预报</title>
+  <style>
+    :root {
+      --bg: #f3f6f1;
+      --surface: #ffffff;
+      --surface-2: #edf3ee;
+      --ink: #18342f;
+      --muted: #50665e;
+      --line: #dfe9e2;
+      --primary: #166b5b;
+      --primary-2: #2f8c78;
+      --mint: #dff2eb;
+      --cream: #fff8e9;
+      --amber: #b77915;
+      --amber-soft: #fff0cc;
+      --blue: #326ca8;
+      --blue-soft: #e6f0fb;
+      --danger: #b84a3f;
+      --danger-soft: #fbe8e4;
+      --shadow: 0 14px 40px rgba(29, 69, 57, .10);
+      --radius: 22px;
+      --ease-out: cubic-bezier(.16, 1, .3, 1);
+      --ease-fluid: cubic-bezier(.22, 1.35, .36, 1);
+    }
+    * { box-sizing: border-box; }
+    @property --weather-border-angle {
+      syntax: "<angle>";
+      initial-value: 0deg;
+      inherits: false;
+    }
+    html { background: #dfe8df; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        linear-gradient(145deg, #dfe8df 0%, #eef4ec 52%, #dfe8df 100%);
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+    }
+    button, input, select, textarea { font: inherit; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+    .device {
+      position: relative;
+      width: min(100%, 430px);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding-bottom: 88px;
+      overflow: hidden;
+      background: var(--bg);
+      box-shadow: 0 14px 40px rgba(0,0,0,.11);
+      transform-origin: 50% 8%;
+      transition: transform .44s var(--ease-out), border-radius .44s var(--ease-out), box-shadow .44s var(--ease-out);
+    }
+    .device.is-sheet-open {
+      border-radius: 28px;
+      transform: scale(.92);
+      box-shadow: 0 32px 80px rgba(0, 0, 0, .24);
+    }
+    .device.is-drawer-open {
+      border-radius: 28px;
+      transform: translateX(24px) scale(.94);
+      box-shadow: 28px 18px 60px rgba(0, 0, 0, .18);
+    }
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 35;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 20px 22px 10px;
+      transition: padding .3s var(--ease-out), background .3s ease, box-shadow .3s ease;
+    }
+    .topbar::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: rgba(243, 246, 241, .84);
+      backdrop-filter: blur(18px) saturate(1.18);
+      opacity: 0;
+      transition: opacity .28s ease;
+      pointer-events: none;
+    }
+    .topbar.is-compact {
+      padding: 10px 18px 9px;
+      box-shadow: 0 1px 0 rgba(0, 0, 0, .06), 0 10px 26px rgba(0, 0, 0, .07);
+    }
+    .topbar.is-compact::after { opacity: 1; }
+    .compact-title {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      color: var(--ink);
+      font-size: 13px;
+      font-weight: 650;
+      letter-spacing: -.02em;
+      opacity: 0;
+      pointer-events: none;
+      transform: translate(-50%, -35%) scale(.82);
+      transform-origin: center;
+      transition: opacity .22s ease, transform .34s var(--ease-spring, cubic-bezier(.22,1.35,.36,1));
+    }
+    .topbar.is-compact .compact-title {
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .topbar-actions { display: flex; align-items: center; gap: 4px; }
+    .more-button {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,.74);
+      color: var(--primary);
+      font-size: 15px;
+      letter-spacing: .08em;
+      box-shadow: 0 5px 16px rgba(0,0,0,.06);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 38px;
+      height: 38px;
+      border-radius: 13px;
+      background: var(--primary);
+      color: #fff;
+      font-weight: 700;
+      font-size: 20px;
+      box-shadow: 0 7px 14px rgba(0, 0, 0, .18);
+    }
+    .brand-copy { display: grid; gap: 1px; }
+    .brand-copy strong { font-size: 15px; letter-spacing: .04em; }
+    .brand-copy small { font-size: 12px; color: var(--muted); letter-spacing: .06em; }
+    .eyebrow { margin: 0; color: var(--muted); font-size: 12px; letter-spacing: .08em; }
+    .screen { display: none; padding: 8px 20px 20px; }
+    .screen.active { display: block; }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes screen-enter-right {
+      from { opacity: 0; transform: translateX(16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes screen-enter-left {
+      from { opacity: 0; transform: translateX(-16px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    .screen.screen-enter-right { animation: screen-enter-right .3s var(--ease-out); }
+    .screen.screen-enter-left { animation: screen-enter-left .3s var(--ease-out); }
+    .ghost {
+      border: 0;
+      background: transparent;
+      color: var(--primary);
+      padding: 8px 4px;
+      font-size: 12px;
+    }
+    .page-title { margin: 4px 0 6px; font-size: 26px; line-height: 1.25; letter-spacing: -.04em; }
+    .page-sub { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .hero {
+      min-height: calc(100vh - 110px);
+      padding: 24px 24px 34px;
+      border-radius: 0 0 34px 34px;
+      background: linear-gradient(155deg, #fffdf4 0%, #eaf6ef 65%, #d9eee5 100%);
+    }
+    .hero .page-title { font-size: 33px; max-width: 320px; margin-top: 24px; }
+    .hero-copy { max-width: 310px; color: #526c63; font-size: 13px; line-height: 1.8; }
+    .hero-note {
+      display: inline-flex;
+      gap: 8px;
+      align-items: center;
+      margin-top: 18px;
+      padding: 9px 13px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.72);
+      color: var(--primary);
+      font-size: 12px;
+    }
+    .hero-note span { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+    .form-card {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 26px;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, .07);
+    }
+    .field { display: grid; gap: 7px; margin-bottom: 15px; }
+    .field label { color: #566e66; font-size: 12px; }
+    .field input, .field select, .record-form input, .record-form select, .pause-form input {
+      width: 100%;
+      border: 1px solid #dce9e1;
+      border-radius: 13px;
+      background: #f8fbf8;
+      color: var(--ink);
+      padding: 12px 13px;
+      outline: none;
+    }
+    .field input:focus, .field select:focus, .record-form input:focus, .record-form select:focus, .pause-form input:focus {
+      border-color: var(--primary-2);
+      box-shadow: 0 0 0 3px rgba(47,140,120,.12);
+    }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .primary, .secondary, .pill-button, .tab {
+      border: 0;
+      border-radius: 13px;
+      padding: 12px 15px;
+      transition: transform .16s ease, box-shadow .16s ease, background .16s ease;
+    }
+    .primary { background: var(--primary); color: #fff; box-shadow: 0 9px 18px rgba(0,0,0,.15); }
+    .primary:hover, .secondary:hover, .pill-button:hover, .tab:hover { transform: translateY(-1px); }
+    .primary:active, .secondary:active, .pill-button:active, .tab:active { transform: translateY(0); }
+    .secondary { background: var(--mint); color: var(--primary); }
+    .wide { width: 100%; }
+    .button-row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .button-row > * { flex: 1 1 135px; }
+    .home-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      padding-top: 8px;
+      transform-origin: left top;
+      will-change: transform, opacity;
+    }
+    .home-head .page-title {
+      transform-origin: left center;
+      will-change: transform, opacity;
+    }
+    .weather-stage {
+      transform-origin: center top;
+      will-change: transform;
+    }
+    .refresh {
+      border: 0;
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: var(--surface);
+      color: var(--primary);
+      font-size: 18px;
+      box-shadow: 0 5px 16px rgba(0,0,0,.07);
+    }
+    .weather-card {
+      --rx: 0deg;
+      --ry: 0deg;
+      --mx: 50%;
+      --my: 35%;
+      position: relative;
+      overflow: hidden;
+      margin-top: 14px;
+      padding: 20px;
+      border-radius: 28px;
+      color: #fff;
+      box-shadow: 0 16px 28px rgba(0,0,0,.16);
+      transform: rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+      transform-style: preserve-3d;
+      transform-origin: center;
+      cursor: pointer;
+      touch-action: pan-y;
+      will-change: transform;
+      transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .2s ease;
+      animation: weather-depth 5.6s ease-in-out infinite;
+    }
+    .weather-card.is-tracking {
+      transition: none;
+    }
+    .weather-card::before {
+      --weather-border-angle: 0deg;
+      content: "";
+      position: absolute;
+      z-index: 3;
+      inset: 0;
+      padding: 1px;
+      border-radius: inherit;
+      background: conic-gradient(from var(--weather-border-angle), rgba(255,255,255,.05), rgba(235,255,192,.82), rgba(255,255,255,.08) 38%, rgba(190,235,222,.64), rgba(255,255,255,.05));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      animation: weather-border-spin 7s linear infinite;
+    }
+    .weather-card::after {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      border-radius: inherit;
+      background:
+        radial-gradient(circle at var(--mx) var(--my), rgba(255,255,255,.16), transparent 29%),
+        radial-gradient(circle at 86% 16%, rgba(255,255,255,.08), transparent 27%);
+      pointer-events: none;
+    }
+    .weather-card > * { position: relative; z-index: 1; }
+    .weather-card::before,
+    .weather-card::after { will-change: transform, opacity, background; }
+    .weather-card [id] { pointer-events: none; }
+    .weather-card {
+      background-image: linear-gradient(135deg, #0f5548, #0a3f37);
+    }
+    .weather-cloudy {
+      background-image: linear-gradient(135deg, #355a70, #233f52);
+    }
+    .weather-rain {
+      background-image: linear-gradient(135deg, #274d6d, #19364f);
+    }
+    .weather-storm {
+      background-image: linear-gradient(135deg, #533643, #2f242a);
+    }
+    @keyframes weather-border-spin { to { --weather-border-angle: 360deg; } }
+    @keyframes weather-depth {
+      0%, 100% { box-shadow: 0 14px 25px rgba(0,0,0,.14); }
+      50% { box-shadow: 0 22px 38px rgba(0,0,0,.22); }
+    }
+    .weather-top { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; }
+    .weather-icon { font-size: 34px; margin-right: 8px; vertical-align: middle; }
+    .weather-label { font-size: 13px; color: rgba(255,255,255,.82); }
+    .confidence {
+      padding: 5px 9px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.16);
+      font-size: 12px;
+      color: rgba(255,255,255,.85);
+    }
+    .weather-headline { position: relative; z-index: 1; margin: 16px 0 4px; font-size: 23px; letter-spacing: -.04em; }
+    .weather-sub { position: relative; z-index: 1; margin: 0; max-width: 280px; color: rgba(255,255,255,.78); font-size: 12px; line-height: 1.6; }
+    .weather-metrics { position: relative; z-index: 1; display: flex; gap: 20px; margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.18); }
+    .weather-metric small { display: block; color: rgba(255,255,255,.65); font-size: 12px; margin-bottom: 4px; }
+    .weather-metric strong { display: block; font-size: 15px; }
+    .card {
+      margin-top: 14px;
+      padding: 17px;
+      border: 1px solid rgba(220, 233, 225, .8);
+      border-radius: var(--radius);
+      background: var(--surface);
+      box-shadow: 0 7px 22px rgba(0,0,0,.045);
+    }
+    .card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    .card-title { font-size: 13px; font-weight: 600; }
+    .card-meta { color: var(--muted); font-size: 12px; }
+    .chart-wrap { min-height: 190px; overflow: hidden; }
+    .chart-readout { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin: 8px 0 4px; }
+    .chart-readout strong {
+      display: block;
+      font-family: Georgia, serif;
+      font-size: 25px;
+      font-weight: 400;
+      letter-spacing: -.035em;
+      font-variant-numeric: tabular-nums;
+    }
+    .chart-readout small { color: var(--muted); font-size: 12px; }
+    .chart-readout span:last-child { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .chart-viewport {
+      position: relative;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      touch-action: pan-x;
+      cursor: grab;
+    }
+    .chart-viewport:active { cursor: grabbing; }
+    .chart-viewport::-webkit-scrollbar { display: none; }
+    .chart-track { position: relative; width: 760px; height: 145px; }
+    #balanceChart { display: block; width: 760px; height: 140px; overflow: visible; }
+    .chart-point-layer { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+    .chart-point {
+      position: absolute;
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      transform: translate(-50%, -50%);
+      pointer-events: auto;
+      scroll-snap-align: center;
+    }
+    .chart-point::after {
+      content: "";
+      position: absolute;
+      inset: 13px;
+      border: 2px solid #fff;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 3px 8px rgba(0,0,0,.16);
+      transition: transform .2s ease, box-shadow .2s ease;
+    }
+    .chart-point.active::after {
+      transform: scale(1.35);
+      box-shadow: 0 0 0 7px rgba(0,0,0,.055), 0 5px 12px rgba(0,0,0,.2);
+    }
+    .chart-foot { display: flex; justify-content: space-between; color: var(--muted); font-size: 12px; }
+    .origin-menu {
+      position: fixed;
+      z-index: 56;
+      width: 212px;
+      padding: 8px;
+      border: 1px solid rgba(200, 218, 208, .9);
+      border-radius: 18px;
+      background: rgba(252, 254, 252, .96);
+      box-shadow: 0 22px 55px rgba(0, 0, 0, .2);
+      backdrop-filter: blur(18px);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: scale(.16) translateY(-4px);
+      transform-origin: var(--menu-origin-x, 100%) var(--menu-origin-y, 0%);
+      transition: opacity .16s ease, transform .24s var(--ease-spring), visibility 0s linear .24s;
+    }
+    .origin-menu.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: scale(1) translateY(0);
+      transition: opacity .16s ease, transform .3s var(--ease-spring), visibility 0s;
+    }
+    .origin-menu button {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      gap: 10px;
+      padding: 11px 10px;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--ink);
+      text-align: left;
+      font-size: 12px;
+    }
+    .origin-menu button:hover,
+    .origin-menu button:focus-visible { background: var(--surface-2); }
+    .origin-menu b {
+      display: grid;
+      flex: 0 0 auto;
+      width: 27px;
+      height: 27px;
+      place-items: center;
+      border-radius: 9px;
+      background: var(--mint);
+      color: var(--primary);
+      font-size: 13px;
+    }
+    .context-tip {
+      position: relative;
+      z-index: 8;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: start;
+      margin: 12px 10px -2px;
+      padding: 12px 12px 12px 14px;
+      border: 1px solid #cce5da;
+      border-radius: 15px;
+      background: #f7fff9;
+      color: #315d50;
+      box-shadow: 0 12px 28px rgba(0, 0, 0, .1);
+      font-size: 12px;
+      line-height: 1.55;
+      opacity: 0;
+      transform: translateY(8px) scale(.97);
+      transform-origin: 50% 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .3s var(--ease-spring);
+    }
+    .context-tip::before {
+      content: "";
+      position: absolute;
+      top: -7px;
+      left: var(--tip-x, 50%);
+      width: 12px;
+      height: 12px;
+      border-top: 1px solid #cce5da;
+      border-left: 1px solid #cce5da;
+      background: #f7fff9;
+      transform: translateX(-50%) rotate(45deg);
+    }
+    .context-tip.show { opacity: 1; pointer-events: auto; transform: translateY(0) scale(1); }
+    .context-tip button { border: 0; background: transparent; color: var(--primary); font-size: 15px; padding: 0 2px; }
+    .settlement {
+      position: relative;
+      z-index: 7;
+      margin-top: 13px;
+    }
+    .settlement-list {
+      display: grid;
+      gap: 8px;
+      max-height: 0;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(10px) scaleY(.92);
+      transform-origin: bottom;
+      transition: max-height .38s var(--ease-out), opacity .2s ease, transform .34s var(--ease-spring), padding .3s ease;
+    }
+    .settlement.expanded .settlement-list {
+      max-height: 190px;
+      padding-bottom: 8px;
+      opacity: 1;
+      transform: translateY(0) scaleY(1);
+    }
+    .settlement-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 9px 12px;
+      border-radius: 12px;
+      background: rgba(255,255,255,.82);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .settlement-row strong { color: var(--ink); font-variant-numeric: tabular-nums; }
+    .settlement-bar {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid #d5e7dc;
+      border-radius: 16px;
+      background: rgba(255,255,255,.9);
+      color: var(--ink);
+      text-align: left;
+      box-shadow: 0 8px 21px rgba(0,0,0,.045);
+    }
+    .settlement-bar small { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .settlement-bar strong { color: var(--primary); font-size: 15px; font-variant-numeric: tabular-nums; }
+    .settlement-chevron { display: inline-block; margin-left: 6px; transition: transform .3s var(--ease-spring); }
+    .settlement.expanded .settlement-chevron { transform: rotate(180deg); }
+    .insight-switcher {
+      margin-top: 14px;
+      padding: 7px;
+      border: 1px solid rgba(220,233,225,.9);
+      border-radius: 20px;
+      background: rgba(255,255,255,.78);
+      box-shadow: 0 8px 22px rgba(0,0,0,.04);
+    }
+    .segment-tabs {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      height: 36px;
+      touch-action: pan-y;
+      user-select: none;
+    }
+    .segment-tabs button {
+      position: relative;
+      z-index: 1;
+      border: 0;
+      border-radius: 12px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      transition: color .28s ease, font-weight .28s ease;
+    }
+    .segment-tabs button.active { color: var(--primary); font-weight: 650; }
+    .segment-thumb {
+      position: absolute;
+      z-index: 0;
+      top: 1px;
+      left: 0;
+      width: calc(33.333% - 4px);
+      height: 34px;
+      border-radius: 12px;
+      background: var(--mint);
+      box-shadow: inset 0 0 0 1px rgba(22,107,91,.05);
+      transform-origin: center;
+      pointer-events: none;
+    }
+    .segment-viewport { overflow: hidden; border-radius: 12px; }
+    .segment-track { display: flex; transform: translateX(0); will-change: transform; }
+    .segment-panel {
+      flex: 0 0 100%;
+      padding: 13px 7px 7px;
+      color: #46645a;
+      font-size: 12px;
+      line-height: 1.65;
+    }
+    .segment-panel strong { display: block; color: var(--ink); font-size: 13px; margin-bottom: 3px; }
+    .segment-metrics { display: flex; gap: 16px; margin-top: 8px; }
+    .segment-metrics span { color: var(--muted); font-size: 12px; }
+    .segment-metrics b { display: block; margin-top: 2px; color: var(--ink); font-size: 13px; font-variant-numeric: tabular-nums; }
+    .risk-strip {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      margin-top: 14px;
+      padding: 14px 15px;
+      border-radius: 17px;
+      background: var(--amber-soft);
+      color: #71520e;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .risk-strip strong { display: block; font-size: 12px; margin-bottom: 2px; }
+    .quick-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 14px; }
+    .quick {
+      border: 0;
+      text-align: left;
+      padding: 15px;
+      border-radius: 18px;
+      background: var(--surface);
+      color: var(--ink);
+      box-shadow: 0 6px 18px rgba(0,0,0,.05);
+    }
+    .quick span { display: block; font-size: 20px; margin-bottom: 12px; }
+    .quick strong { display: block; font-size: 12px; }
+    .quick small { display: block; color: var(--muted); margin-top: 4px; font-size: 12px; }
+    .section-head { display: flex; justify-content: space-between; align-items: center; margin-top: 22px; margin-bottom: 9px; }
+    .section-head h2 { margin: 0; font-size: 15px; }
+    .link-button { border: 0; background: transparent; color: var(--primary); font-size: 12px; }
+    .task-list { display: grid; gap: 8px; }
+    .task {
+      display: flex;
+      gap: 11px;
+      align-items: flex-start;
+      width: 100%;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      text-align: left;
+      color: var(--ink);
+      transition: border-color .16s ease, box-shadow .18s ease, transform .18s var(--ease-out, cubic-bezier(.16,1,.3,1));
+    }
+    .task:hover { border-color: #b8d7cb; }
+    .task-main {
+      display: flex;
+      flex: 1;
+      gap: 11px;
+      align-items: flex-start;
+      min-width: 0;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      text-align: left;
+    }
+    .task-check {
+      flex: 0 0 auto;
+      display: grid;
+      place-items: center;
+      width: 22px;
+      height: 22px;
+      margin-top: 1px;
+      border: 1px solid #bdd3ca;
+      border-radius: 50%;
+      color: transparent;
+      font-size: 12px;
+    }
+    .task.done .task-check { background: var(--primary); border-color: var(--primary); color: #fff; }
+    .task.done .task-title { color: var(--muted); text-decoration: line-through; }
+    .task-title { font-size: 12px; line-height: 1.45; }
+    .task-source { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .safety-mini { display: flex; gap: 13px; align-items: center; }
+    .safety-mini-icon { display: grid; place-items: center; flex: 0 0 auto; width: 41px; height: 41px; border-radius: 14px; background: var(--blue-soft); color: var(--blue); font-size: 20px; }
+    .safety-mini-copy { min-width: 0; }
+    .safety-mini-copy strong { display: block; font-size: 12px; line-height: 1.45; }
+    .safety-mini-copy span { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+    .empty { padding: 20px 12px; text-align: center; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .today-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-end; padding-top: 8px; }
+    .progress-ring { display: grid; place-items: center; width: 58px; height: 58px; border-radius: 50%; background: conic-gradient(var(--primary) var(--progress, 0%), #dcece5 0); color: var(--primary); position: relative; font-size: 13px; font-weight: 600; }
+    .progress-ring::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; background: var(--bg); }
+    .progress-ring span { position: relative; z-index: 1; }
+    .today-note { margin: 16px 0 11px; padding: 12px 14px; border-radius: 15px; background: var(--mint); color: #356b5d; font-size: 12px; line-height: 1.6; }
+    .today-list .task { padding: 15px; }
+    .task-actions { display: flex; gap: 6px; margin-left: auto; }
+    .mini-action { border: 0; border-radius: 9px; padding: 7px 9px; background: var(--surface-2); color: var(--primary); font-size: 12px; }
+    .search-row { display: flex; gap: 8px; margin-top: 15px; }
+    .search-row input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 14px; padding: 12px 13px; background: var(--surface); outline: none; }
+    .search-row .secondary { flex: 0 0 auto; padding: 11px 13px; font-size: 12px; }
+    .category-picker { position: relative; z-index: 14; margin-top: 12px; }
+    .category-trigger {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      padding: 11px 13px;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      background: var(--surface);
+      color: var(--ink);
+      font-size: 12px;
+    }
+    .category-trigger span { flex: 1; text-align: center; }
+    .category-trigger small { color: var(--muted); font-size: 12px; }
+    .category-panel {
+      position: absolute;
+      top: calc(100% + 7px);
+      left: 0;
+      right: 0;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 7px;
+      padding: 9px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: rgba(255,255,255,.98);
+      box-shadow: 0 18px 40px rgba(0,0,0,.15);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-7px) scaleY(.82);
+      transform-origin: top;
+      transition: opacity .18s ease, transform .3s var(--ease-spring), visibility 0s linear .3s;
+    }
+    .category-picker.open .category-panel {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scaleY(1);
+      transition: opacity .18s ease, transform .3s var(--ease-spring), visibility 0s;
+    }
+    .category-panel .chip { width: 100%; text-align: center; }
+    .chip-row { display: flex; gap: 7px; padding: 12px 0 4px; overflow-x: auto; scrollbar-width: none; }
+    .chip-row::-webkit-scrollbar { display: none; }
+    .chip { flex: 0 0 auto; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--muted); padding: 8px 11px; font-size: 12px; }
+    .chip.active { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .safety-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin: 15px 0 4px; }
+    .safety-actions .quick { padding: 14px; }
+    .knowledge-list { display: grid; gap: 8px; margin-top: 9px; }
+    .knowledge-item {
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: var(--surface);
+      padding: 13px;
+      text-align: left;
+      color: var(--ink);
+      transform-origin: center;
+      transition: transform .24s cubic-bezier(.16,1,.3,1), border-color .18s ease, box-shadow .24s ease;
+    }
+    .knowledge-item:hover { border-color: #b8d7cb; }
+    .knowledge-item.is-focused {
+      border-color: #b8d7cb;
+      transform: scale(1.016);
+      box-shadow: 0 10px 24px rgba(0,0,0,.08);
+    }
+    .knowledge-item strong { display: block; font-size: 12px; line-height: 1.5; }
+    .knowledge-item small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .tag { display: inline-block; margin-top: 7px; padding: 3px 7px; border-radius: 999px; background: var(--blue-soft); color: var(--blue); font-size: 12px; }
+    .profile-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 16px; }
+    .summary-tile { padding: 15px; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+    .summary-tile small { display: block; color: var(--muted); font-size: 12px; margin-bottom: 7px; }
+    .summary-tile strong { font-size: 18px; }
+    .profile-section { margin-top: 20px; }
+    .profile-section h2 { margin: 0 0 9px; font-size: 14px; }
+    .demo-row { display: flex; gap: 7px; flex-wrap: wrap; }
+    .demo-button { border: 1px solid var(--line); border-radius: 11px; background: var(--surface); color: var(--ink); padding: 9px 11px; font-size: 12px; }
+    .demo-button:hover { border-color: var(--primary); color: var(--primary); }
+    .settings-list { display: grid; gap: 8px; }
+    .setting { display: flex; justify-content: space-between; align-items: center; padding: 13px 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); font-size: 12px; }
+    .setting small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .motion-link { color: inherit; text-decoration: none; }
+    .danger { color: var(--danger); }
+    .stagger-pending {
+      opacity: 0;
+      transform: translateY(12px) scale(.99);
+    }
+    .stagger-in {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      transition: opacity .32s ease, transform .48s cubic-bezier(.16,1,.3,1);
+      transition-delay: min(calc(var(--stagger-index, 0) * 55ms), 275ms);
+    }
+    .physical-press { will-change: transform; }
+    .physical-press.pressing {
+      box-shadow: inset 0 4px 10px rgba(0,0,0,.17), 0 4px 10px rgba(0,0,0,.08);
+    }
+    .radar-visual {
+      position: relative;
+      display: block;
+      width: 100%;
+      height: 142px;
+      overflow: hidden;
+      margin: 14px 0 2px;
+      padding: 0;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 20px;
+      background: #0b463b;
+      box-shadow: 0 10px 24px rgba(0,0,0,.09);
+    }
+    .radar-visual img { width: 100%; height: 100%; object-fit: cover; }
+    .radar-visual span {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      padding: 6px 9px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 999px;
+      background: rgba(9,36,30,.58);
+      color: #fff;
+      font-size: 12px;
+      backdrop-filter: blur(8px);
+    }
+    .card-detail-overlay {
+      background: rgba(9, 35, 29, .66);
+      backdrop-filter: blur(9px);
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+    .card-detail-panel {
+      width: 100%;
+      max-height: calc(100vh - 36px);
+      overflow: auto;
+      border-radius: 27px;
+      background: var(--bg);
+      box-shadow: 0 30px 80px rgba(0,0,0,.3);
+      transform-origin: center;
+    }
+    .card-detail-panel .overlay-head { position: sticky; top: 0; z-index: 2; padding: 16px 18px 11px; background: rgba(243,246,241,.94); backdrop-filter: blur(14px); }
+    .card-detail-panel #cardContent { padding: 0 16px 18px; }
+    .card-detail-panel .detail-card { box-shadow: none; }
+    .tabbar {
+      position: fixed;
+      bottom: 0;
+      left: 50%;
+      z-index: 20;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      width: min(100%, 430px);
+      transform: translateX(-50%);
+      padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+      border-top: 1px solid rgba(219, 231, 223, .75);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(16px);
+    }
+    .tab-ink {
+      position: absolute;
+      z-index: 0;
+      bottom: 10px;
+      left: 0;
+      width: 0;
+      height: 34px;
+      border-radius: 12px;
+      background: var(--mint);
+      box-shadow: inset 0 0 0 1px rgba(22,107,91,.05);
+      pointer-events: none;
+      will-change: transform, width;
+    }
+    .tab { position: relative; z-index: 1; border: 0; background: transparent; color: #5f726b; font-size: 12px; padding: 7px 3px; display: grid; gap: 4px; justify-items: center; transition: color .32s ease; }
+    .tab span { display: grid; place-items: center; width: 25px; height: 25px; border-radius: 9px; font-size: 15px; transform-origin: center; transition: transform .32s var(--ease-spring); }
+    .tab.active { color: var(--primary); font-weight: 600; }
+    .tab.active span { background: transparent; }
+    .overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      left: 50%;
+      width: min(100%, 430px);
+      overflow: auto;
+      transform: translateX(-50%);
+      background: var(--bg);
+      padding: 18px 20px 34px;
+    }
+    .overlay-head { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; }
+    .back { border: 0; width: 34px; height: 34px; border-radius: 12px; background: var(--surface); color: var(--primary); font-size: 18px; }
+    .overlay-head strong { font-size: 15px; }
+    .detail-card { padding: 20px; border-radius: 23px; background: var(--surface); box-shadow: 0 9px 24px rgba(0,0,0,.055); }
+    .detail-card h2 { margin: 0 0 8px; font-size: 21px; line-height: 1.4; }
+    .detail-card .lead { color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .detail-block { margin-top: 20px; }
+    .detail-block h3 { margin: 0 0 9px; font-size: 13px; }
+    .detail-block ul { margin: 0; padding-left: 18px; color: #526b62; font-size: 12px; line-height: 1.9; }
+    .source { margin-top: 18px; padding-top: 13px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .ai-box { margin-top: 12px; }
+    .ai-answer { margin-top: 16px; padding: 17px; border-radius: 19px; background: var(--surface); border: 1px solid var(--line); font-size: 12px; line-height: 1.75; }
+    .ai-answer h3 { margin: 0 0 7px; font-size: 15px; }
+    .ai-answer .refusal { color: var(--danger); }
+    .example-row { display: flex; gap: 7px; flex-wrap: wrap; margin-top: 11px; }
+    .example { border: 1px solid var(--line); border-radius: 999px; padding: 7px 10px; background: var(--surface); color: var(--primary); font-size: 12px; }
+    .option-list { display: grid; gap: 8px; margin-top: 15px; }
+    .option { border: 1px solid var(--line); border-radius: 13px; background: #fbfdfb; padding: 12px; text-align: left; color: var(--ink); font-size: 12px; line-height: 1.55; }
+    .option.correct { border-color: var(--primary); background: var(--mint); }
+    .option.wrong { border-color: var(--danger); background: var(--danger-soft); }
+    .feedback { margin-top: 13px; padding: 13px; border-radius: 14px; background: var(--surface-2); color: #526b62; font-size: 12px; line-height: 1.7; }
+    .check-list { display: grid; gap: 8px; margin-top: 15px; }
+    .check-item { display: flex; gap: 11px; align-items: flex-start; padding: 13px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); font-size: 12px; line-height: 1.55; }
+    .check-item input { width: 17px; height: 17px; accent-color: var(--primary); }
+    .check-item.checked { background: #f3faf6; border-color: #c7e4d8; }
+    .modal {
+      position: fixed;
+      inset: 0;
+      z-index: 60;
+      display: grid;
+      align-items: end;
+      background: rgba(18,43,35,.35);
+    }
+    .sheet {
+      width: min(100%, 430px);
+      max-height: 86vh;
+      overflow: auto;
+      margin: 0 auto;
+      padding: 20px 20px calc(24px + env(safe-area-inset-bottom));
+      border-radius: 28px 28px 0 0;
+      background: var(--bg);
+      box-shadow: 0 -15px 35px rgba(0,0,0,.14);
+      transform-origin: top left;
+      will-change: transform;
+    }
+    .sheet.is-dragging { touch-action: none; }
+    .sheet-head {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 17px;
+      padding-top: 7px;
+      cursor: grab;
+      touch-action: none;
+    }
+    .sheet-head::before {
+      content: "";
+      position: absolute;
+      top: -3px;
+      left: 50%;
+      width: 42px;
+      height: 4px;
+      border-radius: 999px;
+      background: #bdcbc5;
+      transform: translateX(-50%);
+    }
+    .sheet-head strong { font-size: 18px; }
+    .record-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 4px; border-radius: 13px; background: var(--surface-2); margin-bottom: 14px; }
+    .record-tab { border: 0; border-radius: 10px; padding: 9px; background: transparent; color: var(--muted); font-size: 12px; }
+    .record-tab.active { background: var(--surface); color: var(--primary); box-shadow: 0 3px 10px rgba(0,0,0,.055); }
+    .record-form { display: grid; gap: 12px; }
+    .record-form label { display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    .date-field { position: relative; display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+    .date-trigger {
+      display: flex;
+      width: 100%;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 13px;
+      border: 1px solid #dce9e1;
+      border-radius: 13px;
+      background: #f8fbf8;
+      color: var(--ink);
+      text-align: left;
+    }
+    .date-trigger span:last-child { color: var(--primary); font-size: 12px; }
+    .calendar-popover {
+      position: absolute;
+      z-index: 4;
+      top: calc(100% + 7px);
+      left: 0;
+      width: 100%;
+      padding: 13px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: var(--surface);
+      box-shadow: 0 20px 48px rgba(0,0,0,.18);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(-8px) scale(.96);
+      transform-origin: top;
+      transition: opacity .18s ease, transform .3s var(--ease-spring), visibility 0s linear .3s;
+    }
+    .date-field.open .calendar-popover {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0) scale(1);
+      transition: opacity .18s ease, transform .3s var(--ease-spring), visibility 0s;
+    }
+    .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; color: var(--ink); font-size: 12px; }
+    .calendar-head button { width: 30px; height: 30px; border: 0; border-radius: 9px; background: var(--surface-2); color: var(--primary); }
+    .calendar-week, .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .calendar-week span { padding: 5px 0; color: var(--muted); text-align: center; font-size: 12px; }
+    .calendar-grid button {
+      aspect-ratio: 1;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      color: var(--ink);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+    .calendar-grid button:hover { background: var(--surface-2); }
+    .calendar-grid button.is-today { box-shadow: inset 0 0 0 1px #bcdccf; }
+    .calendar-grid button.is-selected { background: var(--primary); color: #fff; }
+    .calendar-grid .calendar-blank { visibility: hidden; }
+    .drawer-scrim {
+      position: fixed;
+      inset: 0;
+      z-index: 88;
+      background: rgba(9, 30, 25, .34);
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity .34s ease, visibility 0s linear .34s;
+    }
+    .drawer-scrim.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transition: opacity .34s ease, visibility 0s;
+    }
+    .decision-drawer {
+      position: fixed;
+      z-index: 90;
+      top: 0;
+      bottom: 0;
+      left: max(0px, calc(50% - 215px));
+      width: min(84vw, 320px);
+      padding: 24px 18px calc(24px + env(safe-area-inset-bottom));
+      border-radius: 0 28px 28px 0;
+      background: #f8fbf7;
+      box-shadow: 24px 0 60px rgba(0,0,0,.22);
+      transform: translateX(-108%);
+      transition: transform .44s var(--ease-out);
+    }
+    .decision-drawer.open { transform: translateX(0); }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 25px; }
+    .drawer-head h2 { margin: 0; font-size: 22px; letter-spacing: -.035em; }
+    .drawer-close { width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--surface-2); color: var(--primary); font-size: 18px; }
+    .drawer-copy { margin: -12px 0 20px; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .drawer-actions { display: grid; gap: 8px; }
+    .drawer-action {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 13px 14px;
+      border: 1px solid var(--line);
+      border-radius: 15px;
+      background: var(--surface);
+      color: var(--ink);
+      text-align: left;
+      font-size: 12px;
+    }
+    .drawer-action span:last-child { color: var(--primary); }
+    .pause-result { margin-top: 16px; padding: 16px; border-radius: 17px; background: var(--amber-soft); color: #71520e; font-size: 12px; line-height: 1.75; }
+    .pause-result.high { background: var(--danger-soft); color: #8d332a; }
+    .toast {
+      position: fixed;
+      left: 50%;
+      bottom: 102px;
+      z-index: 80;
+      max-width: 80%;
+      transform: translateX(-50%) translateY(8px);
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: #17352e;
+      color: #fff;
+      font-size: 12px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .2s ease, transform .2s ease;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .confirm-layer {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      background: rgba(8, 31, 24, .52);
+      backdrop-filter: blur(7px);
+    }
+    .confirm-panel {
+      width: min(100%, 350px);
+      padding: 22px;
+      border-radius: 25px;
+      background: #fbfdfb;
+      box-shadow: 0 28px 75px rgba(0,0,0,.28);
+      transform-origin: center;
+    }
+    .confirm-panel h2 { margin: 0 0 9px; font-size: 20px; letter-spacing: -.03em; }
+    .confirm-panel p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .confirm-actions { display: flex; gap: 8px; margin-top: 19px; }
+    .confirm-actions > * { flex: 1; }
+    .confirm-success {
+      display: none;
+      place-items: center;
+      min-height: 128px;
+      text-align: center;
+    }
+    .confirm-success b {
+      display: grid;
+      width: 52px;
+      height: 52px;
+      margin-bottom: 13px;
+      place-items: center;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #fff;
+      font-size: 22px;
+    }
+    .confirm-success strong { display: block; font-size: 17px; }
+    .confirm-success small { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; }
+    .confirm-layer.is-complete .confirm-main { display: none; }
+    .confirm-layer.is-complete .confirm-success { display: grid; }
+    .weather-detail-hero {
+      position: relative;
+      overflow: hidden;
+      padding: 24px;
+      border-radius: 25px;
+      background: linear-gradient(145deg, #176a5b, #12483e);
+      color: #fff;
+      box-shadow: 0 15px 32px rgba(0,0,0,.14);
+    }
+    .weather-detail-hero::after {
+      content: "";
+      position: absolute;
+      width: 180px;
+      height: 180px;
+      right: -40px;
+      top: -55px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.1);
+    }
+    .weather-detail-hero > * { position: relative; z-index: 1; }
+    .weather-detail-hero h2 { margin: 22px 0 7px; font-size: 29px; letter-spacing: -.04em; }
+    .weather-detail-hero p { margin: 0; max-width: 310px; color: rgba(255,255,255,.78); font-size: 12px; line-height: 1.7; }
+    .weather-detail-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; margin: 24px 0 0; padding-top: 18px; border-top: 1px solid rgba(255,255,255,.17); }
+    .weather-detail-stats small { display: block; color: rgba(255,255,255,.62); font-size: 12px; }
+    .weather-detail-stats strong { display: block; margin-top: 5px; font-size: 13px; }
+    .image-expand-overlay {
+      position: fixed;
+      z-index: 70;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 24px 14px;
+      background: rgba(5,23,19,.82);
+    }
+    .image-expand-stage {
+      position: relative;
+      width: min(100%, 430px);
+      overflow: hidden;
+      border-radius: 22px;
+      background: #082d27;
+      box-shadow: 0 28px 75px rgba(0,0,0,.34);
+    }
+    .image-expand-stage img { width: 100%; aspect-ratio: 1200 / 820; object-fit: cover; }
+    .image-expand-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255,255,255,.22);
+      border-radius: 50%;
+      background: rgba(7,27,23,.62);
+      color: #fff;
+      font-size: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .confidence,
+    .weather-metric small,
+    .card-meta,
+    .chart-readout small,
+    .chart-foot,
+    .quick small,
+    .task-source,
+    .safety-mini-copy span,
+    .mini-action,
+    .chip,
+    .knowledge-item small,
+    .tag,
+    .summary-tile small,
+    .demo-button,
+    .setting small,
+    .example,
+    .record-form label,
+    .record-tab,
+    .radar-visual span,
+    .weather-detail-stats small { font-size: 12px; }
+    .risk-strip,
+    .today-note,
+    .empty { font-size: 12px; line-height: 1.65; }
+    .weather-label,
+    .weather-sub,
+    .weather-metric small { color: rgba(255,255,255,.84); }
+    @media (max-width: 520px) {
+      .device { box-shadow: none; }
+      .tabbar { left: 0; width: 100%; transform: none; }
+      .overlay, .sheet { width: 100%; left: 0; transform: none; }
+      .decision-drawer { left: 0; }
+      .card-detail-overlay { left: 0; transform: none; width: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+      .weather-card { transform: none !important; }
+      .stagger-pending { opacity: 1; transform: none; }
+      .knowledge-item.is-focused { transform: none; }
+      .chart-viewport { scroll-behavior: auto; }
+      .device.is-sheet-open,
+      .device.is-drawer-open { transform: none; }
+      .origin-menu,
+      .context-tip,
+      .category-panel,
+      .calendar-popover { transform: none; }
+    }
+  </style>
+  <link rel="stylesheet" href="vibe.css">
+</head>
+<body>
+  <div class="device" id="appShell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">¥</div>
+        <div class="brand-copy">
+          <strong>智汇金</strong>
+          <small>钱包天气预报</small>
+        </div>
+      </div>
+      <span class="compact-title" id="compactTitle" aria-hidden="true">钱包天气</span>
+      <div class="topbar-actions">
+        <button class="more-button" id="moreButton" aria-label="打开快捷菜单" aria-expanded="false" aria-controls="actionMenu">•••</button>
+        <button class="ghost" id="headerProfile">我的</button>
+      </div>
+    </header>
+
+    <div class="origin-menu" id="actionMenu" role="menu" aria-label="快捷操作">
+      <button type="button" role="menuitem" data-action="record"><b>＋</b><span>记一笔支出</span></button>
+      <button type="button" role="menuitem" data-action="pause"><b>◷</b><span>买前暂停</span></button>
+      <button type="button" role="menuitem" data-menu-action="drawer"><b>☰</b><span>打开决策抽屉</span></button>
+      <button type="button" role="menuitem" data-menu-action="tip"><b>?</b><span>查看操作提示</span></button>
+    </div>
+
+    <main>
+      <section class="screen active" id="onboardingScreen">
+        <div class="hero">
+          <p class="eyebrow">第一笔生活费，从这里开始</p>
+          <h1 class="page-title">先算一下，这个月能花到哪天。</h1>
+          <p class="hero-copy">不是记完账才知道钱去哪了，而是提前看见哪天会紧张，今天就能做一点调整。</p>
+          <div class="hero-note"><span></span>预算预测 · 金融安全 · 不碰真实支付</div>
+          <div class="form-card">
+            <div class="field-row">
+              <div class="field">
+                <label for="monthlyBudget">每月生活费</label>
+                <input id="monthlyBudget" type="number" inputmode="decimal" value="1500" placeholder="1500">
+              </div>
+              <div class="field">
+                <label for="fixedAmount">固定支出/月</label>
+                <input id="fixedAmount" type="number" inputmode="decimal" value="300" placeholder="300">
+              </div>
+            </div>
+            <div class="field">
+              <label for="nextIncome">下次到账日</label>
+              <input id="nextIncome" type="date" value="2026-11-20">
+            </div>
+            <div class="field">
+              <label for="spendingProfile">你的消费习惯</label>
+              <select id="spendingProfile">
+                <option value="conservative">保守型：先留余地</option>
+                <option value="balanced" selected>均衡型：按节奏花</option>
+                <option value="flexible">弹性型：容易临时消费</option>
+              </select>
+            </div>
+            <button class="primary wide" id="startButton">生成我的预算天气</button>
+            <button class="ghost wide" id="demoButton" style="margin-top:7px">先直接看演示</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen" id="homeScreen">
+        <div class="home-head" id="homeHead">
+          <div>
+            <p class="eyebrow" id="todayLabel">10月21日 · 周三</p>
+            <h1 class="page-title" id="homeHeading">你的钱包天气</h1>
+            <p class="page-sub">提前知道风险，今天做一个动作。</p>
+          </div>
+          <button class="refresh" id="refreshHome" aria-label="重新计算">↻</button>
+        </div>
+        <div class="weather-stage" id="weatherStage">
+          <div class="weather-card weather-sunny" id="weatherCard" role="button" tabindex="0" aria-label="查看钱包天气详情">
+            <div class="weather-top">
+              <div><span class="weather-icon" id="weatherIcon">☀️</span><span class="weather-label" id="weatherLabel">晴天</span></div>
+              <span class="confidence" id="confidenceLabel">估算</span>
+            </div>
+            <h2 class="weather-headline" id="weatherHeadline">先看清未来30天</h2>
+            <p class="weather-sub" id="weatherSub">填写生活费后，这里会告诉你余额走势。</p>
+            <div class="weather-metrics">
+              <div class="weather-metric"><small>预计余额</small><strong id="projectedBalance">—</strong></div>
+              <div class="weather-metric"><small>低余额日</small><strong id="lowBalanceDate">—</strong></div>
+              <div class="weather-metric"><small>主要风险</small><strong id="riskSource">—</strong></div>
+            </div>
+          </div>
+        </div>
+        <div class="card chart-wrap" id="chartCard">
+          <div class="card-head"><span class="card-title">未来30天余额曲线</span><span class="card-meta" id="chartMeta">估算</span></div>
+          <div class="chart-readout">
+            <div><small id="chartFocusLabel">今天</small><strong id="chartFocusValue">¥—</strong></div>
+            <span id="chartFocusDate">10月21日</span>
+          </div>
+          <div class="chart-viewport" id="chartViewport" tabindex="0" aria-label="未来余额预测曲线，可左右滑动并吸附数据点">
+            <div class="chart-track">
+              <svg id="balanceChart" viewBox="0 0 760 140" role="img" aria-label="未来余额预测曲线"></svg>
+              <div class="chart-point-layer" id="chartPointLayer"></div>
+            </div>
+          </div>
+          <div class="chart-foot"><span>左右滑动 · 松手吸附</span><span>预测值，不是收益承诺</span></div>
+        </div>
+        <div class="risk-strip" id="riskStrip"><span>☼</span><div><strong>先记一笔，预测会更准</strong>现在使用的是消费画像估算值。</div></div>
+        <div class="context-tip" id="contextTip" role="status">
+          <span>点右上角“•••”可以记一笔、打开买前暂停，或从左侧展开决策抽屉。</span>
+          <button type="button" id="closeContextTip" aria-label="关闭提示">×</button>
+        </div>
+        <div class="settlement" id="settlement">
+          <div class="settlement-list" id="settlementList"></div>
+          <button class="settlement-bar" id="settlementBar" type="button" aria-expanded="false" aria-controls="settlementList">
+            <span><strong>本周结算</strong><small id="settlementMeta">点开查看待复盘支出</small></span>
+            <span><strong id="settlementTotal">¥0</strong><span class="settlement-chevron">⌃</span></span>
+          </button>
+        </div>
+        <div class="insight-switcher" id="insightSwitcher">
+          <div class="segment-tabs" id="segmentTabs" role="tablist" aria-label="钱包快照">
+            <span class="segment-thumb" id="segmentThumb" aria-hidden="true"></span>
+            <button class="active" type="button" role="tab" aria-selected="true" data-segment="0">今日重点</button>
+            <button type="button" role="tab" aria-selected="false" data-segment="1">安全提醒</button>
+            <button type="button" role="tab" aria-selected="false" data-segment="2">本周账本</button>
+          </div>
+          <div class="segment-viewport" id="segmentViewport">
+            <div class="segment-track" id="segmentTrack">
+              <div class="segment-panel" role="tabpanel"><strong id="segmentFocusTitle">先完成今天最重要的一件事</strong><span id="segmentFocusCopy">计划会跟着余额预测自动调整。</span></div>
+              <div class="segment-panel" role="tabpanel"><strong id="segmentSafetyTitle">先核实，再付款</strong><span id="segmentSafetyCopy">遇到兼职押金、客服退款或屏幕共享要求时，先停下来。</span></div>
+              <div class="segment-panel" role="tabpanel"><strong>最近 7 天消费节奏</strong><span id="segmentLedgerCopy">还没有支出记录。</span><div class="segment-metrics" id="segmentMetrics"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="quick-grid">
+          <button class="quick" data-action="record"><span>＋</span><strong>记一笔</strong><small>支出或计划事件</small></button>
+          <button class="quick" data-screen="today"><span>✓</span><strong>今日计划</strong><small>只做最重要的一件</small></button>
+          <button class="quick" data-action="pause"><span>◷</span><strong>买前暂停</strong><small>先算这笔钱的影响</small></button>
+          <button class="quick" data-screen="safety"><span>◇</span><strong>安全雷达</strong><small>识别风险信号</small></button>
+        </div>
+        <div class="section-head"><h2>今日重点</h2><button class="link-button" data-screen="today">全部</button></div>
+        <div class="task-list" id="homeTasks"></div>
+        <div class="section-head"><h2>有一张卡片，可能你现在就需要</h2></div>
+        <div class="card safety-mini" id="homeSafety"></div>
+      </section>
+
+      <section class="screen" id="todayScreen">
+        <div class="today-head">
+          <div>
+            <p class="eyebrow" id="todayDate">10月21日 · 周三</p>
+            <h1 class="page-title">今日计划</h1>
+            <p class="page-sub">不追求做完所有事，先完成一件。</p>
+          </div>
+          <div class="progress-ring" id="todayProgress"><span>0/0</span></div>
+        </div>
+        <div class="today-note">这些任务来自你的余额预测、计划事件和安全学习进度，最多保留三项。</div>
+        <div class="task-list today-list" id="todayTasks"></div>
+      </section>
+
+      <section class="screen" id="safetyScreen">
+        <p class="eyebrow">不是百科，是遇到事情时能用的卡片</p>
+        <h1 class="page-title">安全雷达</h1>
+        <p class="page-sub">先识别信号，再决定下一步。遇到不确定的事，先停下来。</p>
+        <div class="search-row">
+          <input id="safetySearch" placeholder="搜：兼职押金、客服退款、校园贷">
+          <button class="secondary" id="openAI">问 AI</button>
+        </div>
+        <div class="category-picker" id="categoryPicker">
+          <button class="category-trigger" id="categoryTrigger" type="button" aria-expanded="false" aria-controls="categoryPanel">
+            <small>分类</small><span id="activeCategoryLabel">全部分类</span><small>展开⌄</small>
+          </button>
+          <div class="category-panel" id="categoryPanel"></div>
+        </div>
+        <button class="radar-visual" id="radarVisual" type="button" aria-label="展开校园金融安全雷达图片">
+          <img src="assets/risk-radar.svg" alt="校园金融安全雷达抽象图">
+          <span>打开安全雷达图</span>
+        </button>
+        <div class="safety-actions">
+          <button class="quick" id="openScenario"><span>◇</span><strong>情景训练</strong><small>用一道题练习判断</small></button>
+          <button class="quick" id="openEmergency"><span>!</span><strong>我可能被骗了</strong><small>先做这4步</small></button>
+        </div>
+        <div class="knowledge-list" id="knowledgeList"></div>
+      </section>
+
+      <section class="screen" id="profileScreen">
+        <p class="eyebrow">设置、演示与数据</p>
+        <h1 class="page-title">我的</h1>
+        <p class="page-sub">本地预览版不会上传你的生活费数据。</p>
+        <div class="profile-summary" id="profileSummary"></div>
+        <div class="profile-section">
+          <h2>演示状态</h2>
+          <div class="demo-row">
+            <button class="demo-button" data-demo="sunny">晴天</button>
+            <button class="demo-button" data-demo="cloudy">多云</button>
+            <button class="demo-button" data-demo="rain">阵雨</button>
+            <button class="demo-button" data-demo="storm">暴雨</button>
+          </div>
+        </div>
+        <div class="profile-section">
+          <h2>交互动效</h2>
+          <a class="setting motion-link" href="motion.html">
+            <span>打开动效实验室<small>体验卡片透视、磁吸图表和手势抽屉</small></span><span>进入</span>
+          </a>
+        </div>
+        <div class="profile-section">
+          <h2>本地数据</h2>
+          <div class="settings-list">
+            <button class="setting" id="exportButton"><span>导出 JSON 备份<small>保存预算、支出和学习进度</small></span><span>导出</span></button>
+            <button class="setting" id="importButton"><span>导入备份<small>恢复本机数据</small></span><span>导入</span></button>
+            <button class="setting danger" id="clearButton"><span>清空本地数据<small>清除后无法恢复</small></span><span>清空</span></button>
+          </div>
+          <input id="importFile" type="file" accept="application/json,.json" hidden>
+        </div>
+        <div class="profile-section">
+          <h2>产品边界</h2>
+          <div class="card">
+            <p class="page-sub">智汇金只做预算管理和金融素养教育。它不推荐投资、贷款或具体金融产品，也不承诺收益。</p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tabbar" id="tabbar">
+      <span class="tab-ink" id="tabInk" aria-hidden="true"></span>
+      <button class="tab" data-screen="home"><span>⌂</span>首页</button>
+      <button class="tab" data-screen="today"><span>✓</span>今日</button>
+      <button class="tab" data-screen="safety"><span>◇</span>安全</button>
+      <button class="tab" data-screen="profile"><span>◉</span>我的</button>
+    </nav>
+  </div>
+
+  <section class="overlay card-detail-overlay" id="cardView" hidden>
+    <div class="card-detail-panel" id="cardDetailPanel" role="dialog" aria-modal="true" aria-label="金融安全知识卡">
+      <div class="overlay-head"><button class="back" data-close="cardView">‹</button><strong>知识卡</strong></div>
+      <div id="cardContent"></div>
+    </div>
+  </section>
+
+  <section class="overlay" id="assistantView" hidden>
+    <div class="overlay-head"><button class="back" data-close="assistantView">‹</button><strong>AI 安全助手</strong></div>
+    <p class="page-sub">只根据已审核的金融安全知识卡回答。没有把握时，它会明确说不确定。</p>
+    <div class="ai-box">
+      <div class="search-row">
+        <input id="aiQuery" placeholder="比如：兼职让我先交押金怎么办？">
+        <button class="secondary" id="askButton">问问</button>
+      </div>
+      <div class="example-row">
+        <button class="example" data-query="兼职押金">兼职押金</button>
+        <button class="example" data-query="客服退款">客服退款</button>
+        <button class="example" data-query="校园贷">校园贷</button>
+      </div>
+    </div>
+    <div id="aiAnswer"></div>
+  </section>
+
+  <section class="overlay" id="scenarioView" hidden>
+    <div class="overlay-head"><button class="back" data-close="scenarioView">‹</button><strong>情景训练</strong></div>
+    <div id="scenarioContent"></div>
+  </section>
+
+  <section class="overlay" id="emergencyView" hidden>
+    <div class="overlay-head"><button class="back" data-close="emergencyView">‹</button><strong>我可能被骗了</strong></div>
+    <p class="page-sub">先不要继续付款。完成下面步骤后，页面会记录你的处置进度。</p>
+    <div class="check-list" id="emergencyList"></div>
+    <div class="feedback" id="emergencyStatus"></div>
+  </section>
+
+  <section class="overlay" id="pauseView" hidden>
+    <div class="overlay-head"><button class="back" data-close="pauseView">‹</button><strong>买前暂停</strong></div>
+    <div class="detail-card">
+      <p class="eyebrow">在付款前给自己30秒</p>
+      <h2>这笔钱，会占掉月底的哪一块？</h2>
+      <div class="pause-form" style="display:grid;gap:12px;margin-top:16px">
+        <label class="field"><span>想买什么</span><input id="pauseName" placeholder="比如：耳机"></label>
+        <label class="field"><span>金额</span><input id="pauseAmount" type="number" inputmode="decimal" placeholder="299"></label>
+        <button class="primary wide" id="calculatePause">看看影响</button>
+      </div>
+      <div id="pauseResult"></div>
+    </div>
+  </section>
+
+  <section class="overlay" id="weatherDetailView" hidden>
+    <div class="overlay-head"><button class="back" data-close="weatherDetailView" aria-label="返回">‹</button><strong>钱包天气详情</strong></div>
+    <div class="weather-detail-hero" id="weatherDetailHero">
+      <span class="confidence" id="detailConfidence">估算</span>
+      <h2 id="detailHeadline">钱包有缓冲，按计划走</h2>
+      <p id="detailSub">当前节奏下，到账前仍有比较充足的空间。</p>
+      <div class="weather-detail-stats">
+        <div><small>预计余额</small><strong id="detailBalance">—</strong></div>
+        <div><small>低余额日</small><strong id="detailLowDate">—</strong></div>
+        <div><small>主要风险</small><strong id="detailRisk">—</strong></div>
+      </div>
+    </div>
+    <div class="detail-card" style="margin-top:14px">
+      <h2>先看风险，再决定今天做什么。</h2>
+      <p class="lead">钱包天气不是确定性预测。记账少于 7 天时会标注“估算”，真正的预算调整仍以你的生活安排为准。</p>
+      <div class="detail-block"><h3>接下来可以做什么</h3>
+        <ul><li>先检查金额最大的计划事件，再决定是否保留。</li><li>记下今天第一笔真实支出，让预测更准确。</li><li>如果余额接近安全线，先暂停一笔非必需消费。</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <div class="modal" id="recordModal" hidden>
+    <div class="sheet" id="recordSheet">
+      <div class="sheet-head" id="sheetDragHandle"><strong>记一笔</strong><button class="ghost" data-close="recordModal">关闭</button></div>
+      <div class="record-tabs">
+        <button class="record-tab active" data-record-kind="expense">支出</button>
+        <button class="record-tab" data-record-kind="event">计划事件</button>
+      </div>
+      <div class="record-form">
+        <label id="eventNameField" hidden>事件名称<input id="recordName" placeholder="比如：考试周聚餐"></label>
+        <label>金额<input id="recordAmount" type="number" inputmode="decimal" placeholder="18"></label>
+        <label>分类<select id="recordCategory"><option value="食堂">食堂</option><option value="交通">交通</option><option value="学习">学习</option><option value="网购">网购</option><option value="娱乐">娱乐</option><option value="日用">日用</option><option value="其他">其他</option></select></label>
+        <div class="date-field" id="dateField">
+          <span>日期</span>
+          <button class="date-trigger" id="dateTrigger" type="button" aria-expanded="false" aria-controls="calendarPopover">
+            <span id="recordDateLabel">10月21日</span><span>展开</span>
+          </button>
+          <input id="recordDate" type="date" value="2026-10-21" hidden>
+          <div class="calendar-popover" id="calendarPopover">
+            <div class="calendar-head">
+              <button type="button" id="calendarPrev" aria-label="上个月">‹</button>
+              <strong id="calendarMonth">2026年10月</strong>
+              <button type="button" id="calendarNext" aria-label="下个月">›</button>
+            </div>
+            <div class="calendar-week"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+            <div class="calendar-grid" id="calendarGrid"></div>
+          </div>
+        </div>
+        <button class="primary wide" id="saveRecord">保存</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="drawer-scrim" id="drawerScrim"></div>
+  <aside class="decision-drawer" id="decisionDrawer" aria-hidden="true" aria-label="决策抽屉">
+    <div class="drawer-head">
+      <h2>先做一个决定</h2>
+      <button class="drawer-close" id="closeDecisionDrawer" aria-label="关闭决策抽屉">×</button>
+    </div>
+    <p class="drawer-copy">把下一步缩成一个动作，后面的预测和学习任务就会自动接着走。</p>
+    <div class="drawer-actions">
+      <button class="drawer-action" type="button" data-drawer-go="record"><span>记录今天第一笔支出</span><span>开始</span></button>
+      <button class="drawer-action" type="button" data-drawer-go="pause"><span>买前暂停 30 秒</span><span>计算</span></button>
+      <button class="drawer-action" type="button" data-drawer-go="safety"><span>查看安全提醒</span><span>打开</span></button>
+      <button class="drawer-action" type="button" data-drawer-go="transfer"><span>找同学周转，先看边界</span><span>查看</span></button>
+    </div>
+  </aside>
+
+  <div class="confirm-layer" id="confirmDialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" hidden>
+    <div class="confirm-panel" id="confirmPanel">
+      <div class="confirm-main">
+        <h2 id="confirmTitle">确定继续吗？</h2>
+        <p id="confirmBody">这个操作会改变本机数据。</p>
+        <div class="confirm-actions">
+          <button class="secondary" type="button" id="confirmCancel">先不做</button>
+          <button class="primary" type="button" id="confirmAction">确认</button>
+        </div>
+      </div>
+      <div class="confirm-success" aria-live="polite">
+        <div><b>✓</b><strong id="confirmSuccessTitle">已完成</strong><small id="confirmSuccessCopy">页面会继续更新。</small></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="image-expand-overlay" id="imageExpandOverlay" hidden>
+    <div class="image-expand-stage" id="imageExpandStage">
+      <img src="assets/risk-radar.svg" alt="校园金融安全雷达大图">
+      <button class="image-expand-close" id="closeImageExpand" type="button" aria-label="关闭图片">×</button>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script>
+    const TODAY = "2026-10-21";
+    const STORAGE_KEY = "zhihuijin-html-preview-v1";
+    const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
+    const CATEGORIES = ["全部", "校园金融安全", "消费与借贷", "基础素养", "求助处置"];
+    const cards = [
+      {
+        id: "part-time",
+        title: "兼职让我先交押金，靠谱吗？",
+        category: "校园金融安全",
+        tags: ["兼职", "押金", "刷单"],
+        scene: "找兼职时，对方要求先付款或先充值",
+        signals: ["先交押金或培训费", "要求私下转账", "承诺轻松高回报"],
+        actions: ["停止付款", "保存聊天记录", "通过学校或官方渠道核实"],
+        avoid: ["继续转账", "提供验证码", "拉同学一起交钱"],
+        source: "学校保卫处公开提醒 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "refund",
+        title: "客服说要退款，先让我开屏幕共享？",
+        category: "校园金融安全",
+        tags: ["客服", "退款", "验证码"],
+        scene: "接到陌生客服电话或消息，要求配合退款",
+        signals: ["主动联系并催促", "索要验证码", "要求共享屏幕"],
+        actions: ["挂断并使用官方App核实", "不提供验证码", "保存来电和聊天记录"],
+        avoid: ["按对方链接操作", "共享屏幕", "向陌生账户转账"],
+        source: "金融消费者教育公开材料 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "loan",
+        title: "生活费不够时，用借贷补消费缺口合适吗？",
+        category: "消费与借贷",
+        tags: ["借贷", "校园贷", "生活费"],
+        scene: "余额接近零，但仍有非必需消费计划",
+        signals: ["只强调低日息", "催促立即借款", "建议借新还旧"],
+        actions: ["先削减非必需支出", "核对总还款额", "联系学校支持渠道"],
+        avoid: ["为了消费借新债", "隐瞒负债", "只看每期金额"],
+        source: "金融消费者教育公开材料 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "installment",
+        title: "分期看起来每期很少，真实成本怎么判断？",
+        category: "消费与借贷",
+        tags: ["分期", "利率", "先享后付"],
+        scene: "准备使用分期或先享后付",
+        signals: ["只展示每期金额", "没有展示总成本", "默认开通服务"],
+        actions: ["计算总还款额", "比较不分期方案", "确认能否提前关闭"],
+        avoid: ["只看日息", "忽略手续费", "开通后不检查账单"],
+        source: "金融消费者教育公开材料 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "renewal",
+        title: "会员自动续费，为什么会悄悄扣钱？",
+        category: "消费与借贷",
+        tags: ["自动续费", "会员", "订阅"],
+        scene: "开通试用、学生会员或连续包月",
+        signals: ["默认勾选连续包月", "试用期结束前不提醒", "关闭入口难找"],
+        actions: ["查看订阅管理", "关闭不需要的自动续费", "保留扣费记录"],
+        avoid: ["只关闭App通知", "忽略试用期", "把所有支付都交给免密"],
+        source: "金融消费者教育公开材料 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "code",
+        title: "验证码能不能给别人？",
+        category: "基础素养",
+        tags: ["验证码", "支付", "账户"],
+        scene: "有人以退款、解冻、验证身份为由索要验证码",
+        signals: ["索要短信验证码", "要求提供支付密码", "让你远程操作"],
+        actions: ["不提供验证码", "自己打开官方App核实", "必要时联系官方客服"],
+        avoid: ["把验证码截图发人", "远程共享屏幕", "按陌生人指示转账"],
+        source: "学校与金融消费者教育公开材料 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "credit",
+        title: "征信记录会影响以后什么？",
+        category: "基础素养",
+        tags: ["征信", "信用", "还款"],
+        scene: "准备分期、借贷或申请信用服务",
+        signals: ["宣称花钱可以修复征信", "要求先交服务费", "承诺删除不良记录"],
+        actions: ["通过官方渠道查询", "按时履约", "对异常记录提出异议"],
+        avoid: ["相信征信修复广告", "随意授权查询", "向陌生机构交费"],
+        source: "金融消费者教育公开材料 · 内容示例",
+        level: "进阶"
+      },
+      {
+        id: "game",
+        title: "游戏里低价代充，有什么风险？",
+        category: "校园金融安全",
+        tags: ["游戏", "充值", "代充"],
+        scene: "看到低价代充、账号交易或租号信息",
+        signals: ["要求脱离官方平台交易", "先付款后操作", "承诺低价高额度"],
+        actions: ["只使用官方充值渠道", "保存交易证据", "发现异常立即停止"],
+        avoid: ["提供账号密码", "扫描陌生二维码", "相信低价代充"],
+        source: "校园金融安全公开提醒 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "help",
+        title: "怀疑被骗后，第一步做什么？",
+        category: "求助处置",
+        tags: ["被骗", "转账", "求助"],
+        scene: "已经转账、提供验证码或发现账户异常",
+        signals: ["对方要求继续保密", "承诺再转一笔就能退款", "催促你删除记录"],
+        actions: ["停止继续付款", "保存聊天和转账记录", "联系官方渠道和学校"],
+        avoid: ["相信退款承诺", "删除聊天记录", "独自承担不求助"],
+        source: "学校保卫处与官方求助渠道 · 内容示例",
+        level: "基础"
+      },
+      {
+        id: "privacy",
+        title: "校园问卷要填银行卡和身份证，能填吗？",
+        category: "基础素养",
+        tags: ["个人信息", "身份证", "银行卡"],
+        scene: "填写问卷、注册活动或领取礼品",
+        signals: ["要求银行卡号和密码", "要求身份证正反面", "没有说明用途"],
+        actions: ["先问清用途和保存方式", "只提供必要信息", "发现异常停止填写"],
+        avoid: ["随手提交完整证件", "提供支付密码", "把验证码发给任何人"],
+        source: "个人信息保护公开材料 · 内容示例",
+        level: "基础"
+      },
+
+      {"id": "q1", "title": "下列关于兼职刷单说法正确的是", "category": "校园金融安全", "tags": ["校园金融安全", "题目1"], "scene": "刷单破坏交易秩序，属于违法，不存在正规刷单。", "signals": ["刷单破坏交易秩序，属于违法，不存在正规刷单"], "actions": ["刷单属于违法行为，所有刷单兼职都是骗局"], "avoid": ["小额刷单可以赚零花钱，很安全", "只要平台有营业执照刷单就可信", "刷单任务做完就能提现本金佣金"], "source": "校园金融安全 100 题 · 第 1 题（答案 B）", "level": "基础"},
+      {"id": "q2", "title": "接到自称电商客服，说订单异常要理赔，让你点链接填银行卡验证码，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目2"], "scene": "官方客服不会通过陌生链接、私下微信索要验证码。", "signals": ["官方客服不会通过陌生链接、私下微信索要验证码"], "actions": ["挂断，在官方APP内找店铺官方客服核实"], "avoid": ["马上按要求填写信息，领取赔款", "加对方微信沟通理赔细节", "把验证码发给对方"], "source": "校园金融安全 100 题 · 第 2 题（答案 B）", "level": "基础"},
+      {"id": "q3", "title": "关于非法校园贷，说法错误的是", "category": "校园金融安全", "tags": ["校园金融安全", "题目3"], "scene": "银行面向学生的正规信贷≠非法校园贷，非法校园贷多为非持牌机构放贷。", "signals": ["银行面向学生的正规信贷≠非法校园贷，非法校园贷多为非持牌机构放贷"], "actions": ["正规银行学生信用贷=校园贷"], "avoid": ["宣传低门槛、当天放款", "常常隐藏高额服务费、违约金", "容易导致债务雪球越滚越大"], "source": "校园金融安全 100 题 · 第 3 题（答案 C）", "level": "基础"},
+      {"id": "q4", "title": "有人高价向你租借游戏账号，正确做法是", "category": "校园金融安全", "tags": ["校园金融安全", "题目4"], "scene": "账号出租后，对方可能用于违法活动，账号实名本人要承担责任。", "signals": ["账号出租后，对方可能用于违法活动，账号实名本人要承担责任"], "actions": ["拒绝出租，账号不能转借出租"], "avoid": ["租金很高，直接出租账号", "先收押金，再出租账号", "只租短期，不会出事"], "source": "校园金融安全 100 题 · 第 4 题（答案 B）", "level": "基础"},
+      {"id": "q5", "title": "游戏里有人说低价售卖皮肤，让你微信转账交易，应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目5"], "scene": "脱离官方渠道私下充值，99%为诈骗，付款后对方直接消失。", "signals": ["脱离官方渠道私下充值，99%为诈骗，付款后对方直接消失"], "actions": ["拒绝，只在游戏官方渠道充值"], "avoid": ["价格划算，直接转账", "先转一半，拿到皮肤再补尾款", "拉朋友一起拼单购买"], "source": "校园金融安全 100 题 · 第 5 题（答案 B）", "level": "基础"},
+      {"id": "q6", "title": "被拉进投资群，群里“导师”带着赚钱，很多人晒收益，正确的是", "category": "校园金融安全", "tags": ["校园金融安全", "题目6"], "scene": "虚假投资群所有盈利截图都是伪造，平台后台可控。", "signals": ["虚假投资群所有盈利截图都是伪造，平台后台可控"], "actions": ["群内都是托，是虚假投资骗局，直接退群"], "avoid": ["跟着导师投入资金", "小额试投看看能不能提现", "推荐室友一起进群赚钱"], "source": "校园金融安全 100 题 · 第 6 题（答案 B）", "level": "基础"},
+      {"id": "q7", "title": "刷单时，前两单顺利拿到返利，第三单要求连续做3单才能提现，你应当", "category": "校园金融安全", "tags": ["校园金融安全", "题目7"], "scene": "这是刷单骗局典型升级套路，继续转账只会损失更多。", "signals": ["这是刷单骗局典型升级套路，继续转账只会损失更多"], "actions": ["立刻停止，不再转账，报警"], "avoid": ["继续垫资做完任务", "和对方商量少做一单", "找客服申诉"], "source": "校园金融安全 100 题 · 第 7 题（答案 B）", "level": "基础"},
+      {"id": "q8", "title": "陌生来电索要短信验证码，正确做法", "category": "校园金融安全", "tags": ["校园金融安全", "题目8"], "scene": "短信验证码是资金、身份验证关键，严禁发给陌生人。", "signals": ["短信验证码是资金、身份验证关键，严禁发给陌生人"], "actions": ["任何情况都不向外提供验证码"], "avoid": ["核实对方身份后发给对方", "只要对方说出我的订单信息就可以给", "验证码2分钟有效，超时没用"], "source": "校园金融安全 100 题 · 第 8 题（答案 B）", "level": "基础"},
+      {"id": "q9", "title": "校园贷砍头息指的是", "category": "校园金融安全", "tags": ["校园金融安全", "题目9"], "scene": "砍头息不受法律保护，是非法网贷常见手段。", "signals": ["砍头息不受法律保护，是非法网贷常见手段"], "actions": ["放款预先扣手续费，按全额本金计息"], "avoid": ["按时还款减免利息", "逾期之后才收取利息", "利息可以分期支付"], "source": "校园金融安全 100 题 · 第 9 题（答案 B）", "level": "基础"},
+      {"id": "q10", "title": "卖游戏账号，对方说账号冻结，需要充值解冻，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目10"], "scene": "解冻金、保证金都是账号交易骗局经典话术。", "signals": ["解冻金、保证金都是账号交易骗局经典话术"], "actions": ["拒绝，正规平台不会收解冻金"], "avoid": ["充值解冻，解冻后一起回款", "找对方提供的客服核实", "少量充值尝试"], "source": "校园金融安全 100 题 · 第 10 题（答案 B）", "level": "基础"},
+      {"id": "q11", "title": "网上兼职，要求先交200元建档费才能上岗，应当", "category": "校园金融安全", "tags": ["校园金融安全", "题目11"], "scene": "正规兼职不会提前收取押金、建档费、会费。", "signals": ["正规兼职不会提前收取押金、建档费、会费"], "actions": ["凡是先交钱的兼职基本都是骗局，拒绝"], "avoid": ["缴费报名，岗位稀缺", "协商完工之后再缴费", "拉两个人一起报名可以减免费用"], "source": "校园金融安全 100 题 · 第 11 题（答案 B）", "level": "基础"},
+      {"id": "q12", "title": "微信收到自称辅导员消息，要求立刻转账交培训费，你首先要", "category": "校园金融安全", "tags": ["校园金融安全", "题目12"], "scene": "紧急转账类消息，一定要多渠道核实身份。", "signals": ["紧急转账类消息，一定要多渠道核实身份"], "actions": ["电话或者当面找辅导员核实"], "avoid": ["马上转账，不要耽误", "先转一部分钱", "问同宿舍同学要不要一起交"], "source": "校园金融安全 100 题 · 第 12 题（答案 B）", "level": "基础"},
+      {"id": "q13", "title": "在陌生链接下载投资APP，里面涨跌看着很稳定，说法正确的是", "category": "校园金融安全", "tags": ["校园金融安全", "题目13"], "scene": "非应用商店下载的陌生投资APP大多是虚假盘。", "signals": ["非应用商店下载的陌生投资APP大多是虚假盘"], "actions": ["属于虚假平台，资金无法取出"], "avoid": ["新平台福利大，可以重仓", "只要可以提现一次就是正规平台", "绑定银行卡就能保障资金安全"], "source": "校园金融安全 100 题 · 第 13 题（答案 B）", "level": "基础"},
+      {"id": "q14", "title": "有人找你租用微信收款码，一单给你几十元佣金，正确做法", "category": "校园金融安全", "tags": ["校园金融安全", "题目14"], "scene": "出借、出售两卡（银行卡、支付账户）属于违法犯罪。", "signals": ["出借、出售两卡（银行卡、支付账户）属于违法犯罪"], "actions": ["拒绝，出租收款码涉嫌帮信罪"], "avoid": ["佣金不错，可以出租", "只周末出租，风险小", "要求对方先付押金再出租"], "source": "校园金融安全 100 题 · 第 14 题（答案 B）", "level": "基础"},
+      {"id": "q15", "title": "粉丝群有人低价售卖演唱会内部名额，微信私下转账，应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目15"], "scene": "票务、名额私下交易诈骗高发。", "signals": ["票务、名额私下交易诈骗高发"], "actions": ["官方渠道购票，拒绝私下转账"], "avoid": ["抓紧转账抢名额", "找群主担保再付款", "和其他粉丝拼单"], "source": "校园金融安全 100 题 · 第 15 题（答案 B）", "level": "基础"},
+      {"id": "q16", "title": "宣传零利息、零风险刷单项目，正确判断", "category": "校园金融安全", "tags": ["校园金融安全", "题目16"], "scene": "不存在合法刷单业务。", "signals": ["不存在合法刷单业务"], "actions": ["刷单本身违法，无论怎么宣传都是骗局"], "avoid": ["零风险可以尝试", "不垫资就可以参与", "做完一单立刻提现就安全"], "source": "校园金融安全 100 题 · 第 16 题（答案 B）", "level": "基础"},
+      {"id": "q17", "title": "快递来电说包裹丢失理赔，引导下载APP，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目17"], "scene": "陌生APP会窃取手机里银行卡、验证码信息。", "signals": ["陌生APP会窃取手机里银行卡、验证码信息"], "actions": ["挂断，在快递官方小程序查询物流"], "avoid": ["下载APP按指引理赔", "下载APP，不填写银行卡", "把快递单号发给对方"], "source": "校园金融安全 100 题 · 第 17 题（答案 B）", "level": "基础"},
+      {"id": "q18", "title": "套路贷会刻意制造逾期，目的是", "category": "校园金融安全", "tags": ["校园金融安全", "题目18"], "scene": "套路贷的核心就是恶意垒高债务。", "signals": ["套路贷的核心就是恶意垒高债务"], "actions": ["叠加违约金，垒高债务"], "avoid": ["督促借款人按时还钱", "规范借贷流程", "降低放款风险"], "source": "校园金融安全 100 题 · 第 18 题（答案 B）", "level": "基础"},
+      {"id": "q19", "title": "有人给你介绍稳赚不赔、保本高收益的内部投资渠道，你应当", "category": "校园金融安全", "tags": ["校园金融安全", "题目19"], "scene": "金融投资有风险，不存在保本高收益。", "signals": ["金融投资有风险，不存在保本高收益"], "actions": ["凡是保本高收益基本都是骗局"], "avoid": ["抓住机会投入", "小额试投", "介绍给同学一起赚钱"], "source": "校园金融安全 100 题 · 第 19 题（答案 B）", "level": "基础"},
+      {"id": "q20", "title": "网上找游戏代练，对方要求提前支付保证金，正确做法", "category": "校园金融安全", "tags": ["校园金融安全", "题目20"], "scene": "私下转账代练，极易被骗。", "signals": ["私下转账代练，极易被骗"], "actions": ["优先走正规担保平台，拒绝私下预付保证金"], "avoid": ["支付保证金，约定打完返还", "先付一半", "对方提供截图就可信"], "source": "校园金融安全 100 题 · 第 20 题（答案 B）", "level": "基础"},
+      {"id": "q21", "title": "直播间限时秒杀，商品你并不需要，但是价格很便宜，你应该", "category": "消费与借贷", "tags": ["消费与借贷", "题目21"], "scene": "消费看需求，不被限时营销刺激冲动消费。", "signals": ["消费看需求，不被限时营销刺激冲动消费"], "actions": ["理性判断，不需要就不买"], "avoid": ["限时福利，马上下单", "先下单，大不了之后退货", "囤起来以后总会用到"], "source": "校园金融安全 100 题 · 第 21 题（答案 B）", "level": "基础"},
+      {"id": "q22", "title": "商品分期只标注每月手续费，不标注年化利率，说明", "category": "消费与借贷", "tags": ["消费与借贷", "题目22"], "scene": "手续费模式分期，真实年化经常看起来比表面高很多。", "signals": ["手续费模式分期，真实年化经常看起来比表面高很多"], "actions": ["隐藏真实成本，需要换算年化综合成本"], "avoid": ["利息很低，划算", "没有利息", "银行分期不会有隐藏成本"], "source": "校园金融安全 100 题 · 第 22 题（答案 B）", "level": "基础"},
+      {"id": "q23", "title": "开通先享后付，正确做法是", "category": "消费与借贷", "tags": ["消费与借贷", "题目23"], "scene": "先享后付属于信贷，逾期会上报征信。", "signals": ["先享后付属于信贷，逾期会上报征信"], "actions": ["记好还款日，按时结清，避免逾期"], "avoid": ["随便用，什么时候有钱什么时候还", "不用管，不会影响征信", "可以无限延期"], "source": "校园金融安全 100 题 · 第 23 题（答案 B）", "level": "基础"},
+      {"id": "q24", "title": "购买视频会员，页面默认勾选自动续费，你应当", "category": "消费与借贷", "tags": ["消费与借贷", "题目24"], "scene": "很多平台默认勾选自动续费，容易遗忘扣费。", "signals": ["很多平台默认勾选自动续费，容易遗忘扣费"], "actions": ["取消勾选，或者到期前关闭自动续费"], "avoid": ["不用管，到期自动结束", "自动续费更便宜，保留", "扣费之后再退款"], "source": "校园金融安全 100 题 · 第 24 题（答案 B）", "level": "基础"},
+      {"id": "q25", "title": "租赁商品，商家合同写很多模糊扣款条款，关于押金说法正确的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目25"], "scene": "押金退还以合同、凭证为准，口头承诺无效。", "signals": ["押金退还以合同、凭证为准，口头承诺无效"], "actions": ["仔细阅读退还规则，保留凭证，警惕克扣押金"], "avoid": ["条款无所谓，用完都会退押金", "押金金额小无所谓", "口头承诺押金可退就可信"], "source": "校园金融安全 100 题 · 第 25 题（答案 B）", "level": "基础"},
+      {"id": "q26", "title": "商家发放大额优惠券，但是满减门槛极高，这属于", "category": "消费与借贷", "tags": ["消费与借贷", "题目26"], "scene": "高门槛优惠券，目的引导用户凑单，多买不需要的东西。", "signals": ["高门槛优惠券，目的引导用户凑单，多买不需要的东西"], "actions": ["营销陷阱，诱导不必要消费"], "avoid": ["福利活动", "商家亏本让利", "一定要凑单使用"], "source": "校园金融安全 100 题 · 第 26 题（答案 B）", "level": "基础"},
+      {"id": "q27", "title": "你想买一个超出预算的电子产品，商家推荐消费分期，你首先要", "category": "消费与借贷", "tags": ["消费与借贷", "题目27"], "scene": "借贷消费前先评估需求和还款能力。", "signals": ["借贷消费前先评估需求和还款能力"], "actions": ["评估自己还款能力，判断是否真的需要"], "avoid": ["直接分期拿下", "分最长期限，月供最低就划算", "找同学借钱分期"], "source": "校园金融安全 100 题 · 第 27 题（答案 B）", "level": "基础"},
+      {"id": "q28", "title": "信用卡分期每月手续费固定，随着本金不断归还，真实年化利率会", "category": "消费与借贷", "tags": ["消费与借贷", "题目28"], "scene": "分期手续费按全额本金收取，资金占用成本更高。", "signals": ["分期手续费按全额本金收取，资金占用成本更高"], "actions": ["高于表面手续费率"], "avoid": ["和手续费率一样", "更低", "没有变化"], "source": "校园金融安全 100 题 · 第 28 题（答案 B）", "level": "基础"},
+      {"id": "q29", "title": "0.1元试用7天会员，协议自动续费，正确做法", "category": "消费与借贷", "tags": ["消费与借贷", "题目29"], "scene": "低价试用是自动续费最常见套路。", "signals": ["低价试用是自动续费最常见套路"], "actions": ["开通之后立刻去关闭自动续费"], "avoid": ["先试用，用完再说", "试用到期不会扣费", "扣费了可以无条件退款"], "source": "校园金融安全 100 题 · 第 29 题（答案 B）", "level": "基础"},
+      {"id": "q30", "title": "理发店、健身房让大额充值办卡，说法正确的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目30"], "scene": "预付费商家倒闭，余额维权难度很大。", "signals": ["预付费商家倒闭，余额维权难度很大"], "actions": ["大额预付有商家跑路风险，尽量少充"], "avoid": ["充值越多折扣越大，划算", "办卡之后商家必须一直营业", "有收据就一定能退款"], "source": "校园金融安全 100 题 · 第 30 题（答案 B）", "level": "基础"},
+      {"id": "q31", "title": "信用卡只还最低还款额，下面说法正确的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目31"], "scene": "最低还款可以避免逾期，但利息成本高。", "signals": ["最低还款可以避免逾期，但利息成本高"], "actions": ["不会逾期，但剩余欠款会收取高额循环利息"], "avoid": ["没有利息，不会逾期", "征信不会记录，没有任何成本", "可以一直只还最低"], "source": "校园金融安全 100 题 · 第 31 题（答案 B）", "level": "基础"},
+      {"id": "q32", "title": "商家以旧换新活动，重点要关注", "category": "消费与借贷", "tags": ["消费与借贷", "题目32"], "scene": "不能只看补贴，要对比整体总价。", "signals": ["不能只看补贴，要对比整体总价"], "actions": ["旧品折价、新品最终成交价综合对比"], "avoid": ["宣传补贴金额", "只要有补贴就划算", "活动限时，抓紧参加"], "source": "校园金融安全 100 题 · 第 32 题（答案 B）", "level": "基础"},
+      {"id": "q33", "title": "宣传0息分期，下面说法正确的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目33"], "scene": "零息常常搭配其他服务费用。", "signals": ["零息常常搭配其他服务费用"], "actions": ["可能收取服务费、担保费，要看全部合同"], "avoid": ["没有任何费用", "银行0息分期一定没有其他费用", "0息分期一定划算"], "source": "校园金融安全 100 题 · 第 33 题（答案 B）", "level": "基础"},
+      {"id": "q34", "title": "盲盒消费需要注意", "category": "消费与借贷", "tags": ["消费与借贷", "题目34"], "scene": "盲盒随机性强，很容易超额消费。", "signals": ["盲盒随机性强，很容易超额消费"], "actions": ["设置预算，理性克制，不要超额消费"], "avoid": ["集齐全套，不停购买", "盲盒一定可以转手赚钱", "商家承诺隐藏款必出"], "source": "校园金融安全 100 题 · 第 34 题（答案 B）", "level": "基础"},
+      {"id": "q35", "title": "下单前支付“定金”，之后你不想买了，定金", "category": "消费与借贷", "tags": ["消费与借贷", "题目35"], "scene": "定金适用定金罚则；订金只是预付款，可协商退款。", "signals": ["定金适用定金罚则", "订金只是预付款，可协商退款"], "actions": ["商家有权不予退还"], "avoid": ["可以全额退回", "退一半", "七天内无条件退"], "source": "校园金融安全 100 题 · 第 35 题（答案 B）", "level": "基础"},
+      {"id": "q36", "title": "利率是指", "category": "基础素养", "tags": ["基础素养", "题目36"], "scene": "利率=利息÷本金。", "signals": ["利率=利息÷本金"], "actions": ["利息和本金的比率"], "avoid": ["本金总额", "还款总金额", "手续费总额"], "source": "校园金融安全 100 题 · 第 36 题（答案 B）", "level": "基础"},
+      {"id": "q37", "title": "七日年化收益率指的是", "category": "基础素养", "tags": ["基础素养", "题目37"], "scene": "七日年化只是参考，不代表未来收益。", "signals": ["七日年化只是参考，不代表未来收益"], "actions": ["根据最近7天收益折算的年度参考收益率，不保本"], "avoid": ["保证一年拿到的收益", "7天内固定收益", "存款固定利息"], "source": "校园金融安全 100 题 · 第 37 题（答案 B）", "level": "基础"},
+      {"id": "q38", "title": "复利的特点是", "category": "基础素养", "tags": ["基础素养", "题目38"], "scene": "复利俗称利滚利，单利只按原始本金计息。", "signals": ["复利俗称利滚利，单利只按原始本金计息"], "actions": ["利息加入本金，继续产生利息（利滚利）"], "avoid": ["只按原始本金算利息", "没有利息", "每月利息固定不变"], "source": "校园金融安全 100 题 · 第 38 题（答案 B）", "level": "基础"},
+      {"id": "q39", "title": "个人征信报告不会记录下面哪一项", "category": "基础素养", "tags": ["基础素养", "题目39"], "scene": "征信记录信贷履约信息，不记录购物浏览记录。", "signals": ["征信记录信贷履约信息，不记录购物浏览记录"], "actions": ["你的购物浏览记录"], "avoid": ["贷款逾期记录", "信用卡还款记录", "信贷查询记录"], "source": "校园金融安全 100 题 · 第 39 题（答案 C）", "level": "基础"},
+      {"id": "q40", "title": "路边陌生二维码，扫码领红包，正确做法", "category": "基础素养", "tags": ["基础素养", "题目40"], "scene": "陌生二维码可能植入木马、跳转钓鱼页面。", "signals": ["陌生二维码可能植入木马、跳转钓鱼页面"], "actions": ["不随意扫陌生二维码，有被盗刷风险"], "avoid": ["立刻扫码领取", "扫码之后不填写密码就没事", "用小号扫码"], "source": "校园金融安全 100 题 · 第 40 题（答案 B）", "level": "基础"},
+      {"id": "q41", "title": "网上陌生人索要你的身份证照片，你应当", "category": "基础素养", "tags": ["基础素养", "题目41"], "scene": "身份证照片可以被用于注册账号、贷款等违法用途。", "signals": ["身份证照片可以被用于注册账号、贷款等违法用途"], "actions": ["非必要不提供敏感证件信息"], "avoid": ["对方看起来正规，直接发", "打码之后就可以随便发", "发给对方换取福利"], "source": "校园金融安全 100 题 · 第 41 题（答案 B）", "level": "基础"},
+      {"id": "q42", "title": "单利计算利息，利息来源于", "category": "基础素养", "tags": ["基础素养", "题目42"], "scene": "单利和复利是两种计息方式。", "signals": ["单利和复利是两种计息方式"], "actions": ["最初的本金，利息不再产生利息"], "avoid": ["本金+已经产生的利息", "复利滚动", "手续费"], "source": "校园金融安全 100 题 · 第 42 题（答案 B）", "level": "基础"},
+      {"id": "q43", "title": "频繁在多个平台申请网贷，会造成", "category": "基础素养", "tags": ["基础素养", "题目43"], "scene": "多头借贷、频繁查询是金融机构风控重点关注项。", "signals": ["多头借贷、频繁查询是金融机构风控重点关注项"], "actions": ["征信查询记录变多，影响贷款审批"], "avoid": ["征信没有任何变化", "提高征信分数", "直接上黑名单"], "source": "校园金融安全 100 题 · 第 43 题（答案 B）", "level": "基础"},
+      {"id": "q44", "title": "银行卡密码设置，合理的是", "category": "基础素养", "tags": ["基础素养", "题目44"], "scene": "简单密码极易被盗刷。", "signals": ["简单密码极易被盗刷"], "actions": ["复杂密码，不告诉别人，不写在卡片上"], "avoid": ["生日、手机号后六位", "所有账号统一同一个密码", "密码发给家人保管"], "source": "校园金融安全 100 题 · 第 44 题（答案 B）", "level": "基础"},
+      {"id": "q45", "title": "金融市场基本规律：收益越高，通常", "category": "基础素养", "tags": ["基础素养", "题目45"], "scene": "高收益伴随高风险，不存在高收益零风险。", "signals": ["高收益伴随高风险，不存在高收益零风险"], "actions": ["风险越高"], "avoid": ["风险越低", "保本越稳", "期限越短"], "source": "校园金融安全 100 题 · 第 45 题（答案 B）", "level": "基础"},
+      {"id": "q46", "title": "支付密码和短信验证码，正确理解", "category": "基础素养", "tags": ["基础素养", "题目46"], "scene": "拿到密码+验证码，大概率可以转走资金。", "signals": ["拿到密码+验证码，大概率可以转走资金"], "actions": ["二者都是资金安全凭证，严禁外泄"], "avoid": ["验证码只是通知，无关紧要", "验证码可以发给熟人", "密码可以截图保存相册"], "source": "校园金融安全 100 题 · 第 46 题（答案 B）", "level": "基础"},
+      {"id": "q47", "title": "一个手电筒APP，索要读取通讯录权限，你应该", "category": "基础素养", "tags": ["基础素养", "题目47"], "scene": "APP只能获取和功能匹配的权限。", "signals": ["APP只能获取和功能匹配的权限"], "actions": ["拒绝非必要权限申请"], "avoid": ["全部同意授权", "不给权限APP就不能用，只能同意", "只给一次权限"], "source": "校园金融安全 100 题 · 第 47 题（答案 B）", "level": "基础"},
+      {"id": "q48", "title": "下面哪一项受存款保险保障", "category": "基础素养", "tags": ["基础素养", "题目48"], "scene": "理财、基金、股票是投资，不保本，不受存款保险保护。", "signals": ["理财、基金、股票是投资，不保本，不受存款保险保护"], "actions": ["银行定期存款（50万以内）"], "avoid": ["银行理财产品", "基金", "股票"], "source": "校园金融安全 100 题 · 第 48 题（答案 B）", "level": "基础"},
+      {"id": "q49", "title": "名义利率减去通货膨胀率，得到的是", "category": "基础素养", "tags": ["基础素养", "题目49"], "scene": "实际利率衡量购买力真实变化。", "signals": ["实际利率衡量购买力真实变化"], "actions": ["实际利率"], "avoid": ["年化利率", "手续费率", "折现率"], "source": "校园金融安全 100 题 · 第 49 题（答案 A）", "level": "基础"},
+      {"id": "q50", "title": "下面说法正确的是", "category": "基础素养", "tags": ["基础素养", "题目50"], "scene": "出借、出售银行卡属于违法，涉嫌帮信罪。", "signals": ["出借、出售银行卡属于违法，涉嫌帮信罪"], "actions": ["个人金融账户仅限本人使用，禁止出借"], "avoid": ["银行卡可以借给好朋友周转", "闲置银行卡可以卖掉", "出租银行卡只是小事，不违法"], "source": "校园金融安全 100 题 · 第 50 题（答案 B）", "level": "基础"},
+      {"id": "q51", "title": "你怀疑自己正在遭遇诈骗，第一步应该", "category": "求助处置", "tags": ["求助处置", "题目51"], "scene": "继续转账只会扩大损失，第一时间留存证据。", "signals": ["继续转账只会扩大损失，第一时间留存证据"], "actions": ["停止一切转账，保存全部证据"], "avoid": ["和骗子争吵，要求对方退钱", "继续转账，完成任务拿回本金", "删掉聊天记录，避免麻烦"], "source": "校园金融安全 100 题 · 第 51 题（答案 B）", "level": "基础"},
+      {"id": "q52", "title": "已经转账给骗子，钱转出去了，最先做的是", "category": "求助处置", "tags": ["求助处置", "题目52"], "scene": "网上所谓付费追回钱款，基本又是二次诈骗。", "signals": ["网上所谓付费追回钱款，基本又是二次诈骗"], "actions": ["报警+联系支付平台紧急止付"], "avoid": ["等待对方主动退款", "网上找“追回大师”帮忙追款", "反复联系骗子沟通"], "source": "校园金融安全 100 题 · 第 52 题（答案 B）", "level": "基础"},
+      {"id": "q53", "title": "身份证信息不慎泄露，做法错误的是", "category": "求助处置", "tags": ["求助处置", "题目53"], "scene": "信息泄露之后，钓鱼信息会变多，链接不能点。", "signals": ["信息泄露之后，钓鱼信息会变多，链接不能点"], "actions": ["收到不明链接直接点开查看"], "avoid": ["警惕陌生贷款、验证码短信", "保管好银行卡，不随便授权", "必要时报警备案"], "source": "校园金融安全 100 题 · 第 53 题（答案 B）", "level": "基础"},
+      {"id": "q54", "title": "接到催收电话，辱骂威胁、骚扰你的室友家人，属于", "category": "求助处置", "tags": ["求助处置", "题目54"], "scene": "暴力催收违法，有权投诉、报警。", "signals": ["暴力催收违法，有权投诉、报警"], "actions": ["暴力催收，保留录音证据报警、投诉"], "avoid": ["正常催收手段", "只能乖乖还钱，没有办法", "拉黑就没事"], "source": "校园金融安全 100 题 · 第 54 题（答案 B）", "level": "基础"},
+      {"id": "q55", "title": "96110来电，正确做法", "category": "求助处置", "tags": ["求助处置", "题目55"], "scene": "96110是反诈预警电话。", "signals": ["96110是反诈预警电话"], "actions": ["反诈劝阻专线，务必接听，听从劝阻"], "avoid": ["骚扰电话，直接挂断", "回拨过去确认", "标记诈骗"], "source": "校园金融安全 100 题 · 第 55 题（答案 B）", "level": "基础"},
+      {"id": "q56", "title": "自称公安局，说你涉嫌案件，要求资金转入安全账户，你应当", "category": "求助处置", "tags": ["求助处置", "题目56"], "scene": "公检法机关不会电话要求转账验资。", "signals": ["公检法机关不会电话要求转账验资"], "actions": ["公检法没有安全账户，是诈骗，挂断报警"], "avoid": ["配合调查，马上转账", "按照对方要求保密，不能告诉别人", "找对方提供的警官证核实"], "source": "校园金融安全 100 题 · 第 56 题（答案 B）", "level": "基础"},
+      {"id": "q57", "title": "微信账号被盗，首先操作", "category": "求助处置", "tags": ["求助处置", "题目57"], "scene": "优先锁住账号和资金，防止资金被盗。", "signals": ["优先锁住账号和资金，防止资金被盗"], "actions": ["修改密码、冻结账号，解绑支付银行卡"], "avoid": ["等骗子自己下线", "先和骗子聊天协商", "删掉好友"], "source": "校园金融安全 100 题 · 第 57 题（答案 B）", "level": "基础"},
+      {"id": "q58", "title": "遭遇非法网贷暴力催收，不可以通过哪个渠道维权", "category": "求助处置", "tags": ["求助处置", "题目58"], "scene": "继续转账只会持续遭受损失。", "signals": ["继续转账只会持续遭受损失"], "actions": ["继续给对方转账了结"], "avoid": ["110报警", "12378金融投诉热线", "12315"], "source": "校园金融安全 100 题 · 第 58 题（答案 C）", "level": "基础"},
+      {"id": "q59", "title": "被骗转账之后，报警时间早晚，对资金追回影响", "category": "求助处置", "tags": ["求助处置", "题目59"], "scene": "资金一旦被骗子快速拆分转移，很难追回。", "signals": ["资金一旦被骗子快速拆分转移，很难追回"], "actions": ["越早报警止付，追回概率越高"], "avoid": ["没有影响，早晚都一样", "超过24小时依然可以轻松追回", "只要有转账记录就一定全额追回"], "source": "校园金融安全 100 题 · 第 59 题（答案 B）", "level": "基础"},
+      {"id": "q60", "title": "看到同学正在给骗子转账，你应该", "category": "求助处置", "tags": ["求助处置", "题目60"], "scene": "及时劝阻，避免同学财产受损。", "signals": ["及时劝阻，避免同学财产受损"], "actions": ["立刻劝阻，提醒他停止转账，联系反诈"], "avoid": ["事不关己，不插手", "等他转完再说", "嘲笑他容易上当"], "source": "校园金融安全 100 题 · 第 60 题（答案 B）", "level": "基础"},
+      {"id": "q61", "title": "接到自称客服，说你名下有校园贷需注销否则影响征信，要求贷款转账“清空额度”，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目61"], "scene": "所谓注销校园贷、清空额度都是诈骗话术，正规机构不会要求你转账。", "signals": ["所谓注销校园贷、清空额度都是诈骗话术，正规机构不会要求你转账"], "actions": ["这是诈骗，正规机构不会要求贷款转账清空额度"], "avoid": ["按对方操作注销", "先转小额试试", "加对方微信了解详情"], "source": "校园金融安全 100 题 · 第 61 题（答案 B）", "level": "基础"},
+      {"id": "q62", "title": "网恋对象带你投资，前几次都赚到钱，让你加大投入，你应", "category": "校园金融安全", "tags": ["校园金融安全", "题目62"], "scene": "杀猪盘先养后杀，前期小额盈利只为诱你投入大额资金。", "signals": ["杀猪盘先养后杀，前期小额盈利只为诱你投入大额资金"], "actions": ["这是“杀猪盘”，立即停止并报警"], "avoid": ["相信对方，重仓投入", "赚一笔就跑", "拉朋友一起投"], "source": "校园金融安全 100 题 · 第 62 题（答案 B）", "level": "基础"},
+      {"id": "q63", "title": "对方称你误开通了付费会员，不取消会扣费，让你共享屏幕协助取消，正确做法", "category": "校园金融安全", "tags": ["校园金融安全", "题目63"], "scene": "共享屏幕会暴露你的密码、验证码，扣费类来电先到官方APP核实。", "signals": ["共享屏幕会暴露你的密码、验证码，扣费类来电先到官方APP核实"], "actions": ["官方渠道核实，绝不共享屏幕、不转账"], "avoid": ["配合共享屏幕操作", "按对方引导输入验证码", "先把钱转到“安全账户”"], "source": "校园金融安全 100 题 · 第 63 题（答案 B）", "level": "基础"},
+      {"id": "q64", "title": "游戏里有人低价“代充”点券，要求微信先付款，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目64"], "scene": "代充、外挂多涉违法且私下收款极易被骗。", "signals": ["代充、外挂多涉违法且私下收款极易被骗"], "actions": ["拒绝，只在官方渠道充值"], "avoid": ["划算，先付款", "付一半试试", "介绍朋友一起买"], "source": "校园金融安全 100 题 · 第 64 题（答案 B）", "level": "基础"},
+      {"id": "q65", "title": "收到短信称可领奖助学金，需先交“激活费”才能到账，你应", "category": "校园金融安全", "tags": ["校园金融安全", "题目65"], "scene": "奖助学金由学校正规发放，不会要求先交手续费或验证金。", "signals": ["奖助学金由学校正规发放，不会要求先交手续费或验证金"], "actions": ["学校发放奖助学金不会让你先交钱，属诈骗"], "avoid": ["按要求交费领取", "交小额试试", "按短信链接填写银行卡"], "source": "校园金融安全 100 题 · 第 65 题（答案 B）", "level": "基础"},
+      {"id": "q66", "title": "校园二手群有人卖手机，要求微信私下转账，不通过平台，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目66"], "scene": "脱离平台私下交易无保障，极易钱货两空。", "signals": ["脱离平台私下交易无保障，极易钱货两空"], "actions": ["坚持走平台担保交易，拒绝私下转账"], "avoid": ["私下转账，方便快捷", "付一半定金", "先转快递费"], "source": "校园金融安全 100 题 · 第 66 题（答案 B）", "level": "基础"},
+      {"id": "q67", "title": "页面提示扫码可免费领游戏皮肤，要求输入账号密码，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目67"], "scene": "免费领道具、皮肤多为盗号手段，绝不透露账号密码。", "signals": ["免费领道具、皮肤多为盗号手段，绝不透露账号密码"], "actions": ["天上不会掉馅饼，拒绝并提供账号密码"], "avoid": ["扫码领取", "用大号领，小号试", "按要求填写"], "source": "校园金融安全 100 题 · 第 67 题（答案 B）", "level": "基础"},
+      {"id": "q68", "title": "“高薪打字录入”兼职要求先交200元培训费才能接单，正确做法", "category": "校园金融安全", "tags": ["校园金融安全", "题目68"], "scene": "正规兼职不会提前收取培训费、押金等费用。", "signals": ["正规兼职不会提前收取培训费、押金等费用"], "actions": ["先交钱的兼职多为骗局，拒绝"], "avoid": ["缴费入职", "完工后再交", "找人担保后交"], "source": "校园金融安全 100 题 · 第 68 题（答案 B）", "level": "基础"},
+      {"id": "q69", "title": "收到银行短信称“账户异常”需点链接验证，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目69"], "scene": "钓鱼短信冒充银行，点击链接或填写信息会导致资金被盗。", "signals": ["钓鱼短信冒充银行，点击链接或填写信息会导致资金被盗"], "actions": ["不点陌生链接，拨打银行官方客服核实"], "avoid": ["点链接处理", "在链接里填密码", "转发给家人帮忙"], "source": "校园金融安全 100 题 · 第 69 题（答案 B）", "level": "基础"},
+      {"id": "q70", "title": "有人推荐你购买某虚拟币，宣称稳赚高收益、随时可提现，你应", "category": "校园金融安全", "tags": ["校园金融安全", "题目70"], "scene": "高收益虚拟币项目多圈钱跑路，投资需警惕。", "signals": ["高收益虚拟币项目多圈钱跑路，投资需警惕"], "actions": ["虚拟币投资风险高且多涉骗局，警惕平台跑路"], "avoid": ["把握机会买入", "小额试投", "拉同学一起买"], "source": "校园金融安全 100 题 · 第 70 题（答案 B）", "level": "基础"},
+      {"id": "q71", "title": "朋友出钱请你帮他办张银行卡“周转”资金，正确做法", "category": "校园金融安全", "tags": ["校园金融安全", "题目71"], "scene": "银行卡仅限本人使用，出借代办易被用于洗钱等违法活动。", "signals": ["银行卡仅限本人使用，出借代办易被用于洗钱等违法活动"], "actions": ["拒绝，出借、代办银行卡涉嫌违法"], "avoid": ["帮朋友忙，办了给他", "收点好处费再办", "只办卡不设密码"], "source": "校园金融安全 100 题 · 第 71 题（答案 B）", "level": "基础"},
+      {"id": "q72", "title": "商家称可给你退款，但要求先转一笔“验证金”证明账户可用，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目72"], "scene": "正规退款直接原路退回，不会要求你先转账验证。", "signals": ["正规退款直接原路退回，不会要求你先转账验证"], "actions": ["退款不需要你先转钱，是诈骗"], "avoid": ["转账验证", "转小额试试", "按提示输入验证码"], "source": "校园金融安全 100 题 · 第 72 题（答案 B）", "level": "基础"},
+      {"id": "q73", "title": "班级群有人发起“拼单代购”，要求先收钱后发货，你应该", "category": "校园金融安全", "tags": ["校园金融安全", "题目73"], "scene": "陌生拼单、代购先付款后失联的骗局高发。", "signals": ["陌生拼单、代购先付款后失联的骗局高发"], "actions": ["谨慎，选择有保障的方式，不轻信先付款"], "avoid": ["先付款拼单", "付一半", "让组织者担保"], "source": "校园金融安全 100 题 · 第 73 题（答案 B）", "level": "基础"},
+      {"id": "q74", "title": "关于七天无理由退货，说法正确的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目74"], "scene": "七天无理由退货有适用范围，购买前应确认。", "signals": ["七天无理由退货有适用范围，购买前应确认"], "actions": ["定制、生鲜等特殊商品不适用，购买前要看清"], "avoid": ["所有商品都能七天无理由退货", "拆封就能退", "超过七天也能随便退"], "source": "校园金融安全 100 题 · 第 74 题（答案 B）", "level": "基础"},
+      {"id": "q75", "title": "使用信用卡透支消费，最需要警惕的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目75"], "scene": "透支额度是负债，需理性消费、按时还款。", "signals": ["透支额度是负债，需理性消费、按时还款"], "actions": ["透支过多无法还款会累积高额利息并影响征信"], "avoid": ["透支额度是白给的钱", "每月只还最低就行", "额度用不完浪费"], "source": "校园金融安全 100 题 · 第 75 题（答案 B）", "level": "基础"},
+      {"id": "q76", "title": "为在同学面前“有面子”，你想分期买远超预算的名牌包，正确做法是", "category": "消费与借贷", "tags": ["消费与借贷", "题目76"], "scene": "消费应匹配自身能力，不为面子背上债务。", "signals": ["消费应匹配自身能力，不为面子背上债务"], "actions": ["量入为出，超出能力不买"], "avoid": ["分期拿下，先享受再说", "找多个平台分期凑", "先刷信用卡后慢慢还"], "source": "校园金融安全 100 题 · 第 76 题（答案 B）", "level": "基础"},
+      {"id": "q77", "title": "开通信用卡自动还款，到期日你忘了存钱，卡内余额不足，可能", "category": "消费与借贷", "tags": ["消费与借贷", "题目77"], "scene": "自动还款余额不足会导致扣款失败，产生逾期。", "signals": ["自动还款余额不足会导致扣款失败，产生逾期"], "actions": ["扣款失败产生逾期，影响征信"], "avoid": ["自动还款不受影响", "自动延期无费用", "银行会垫付"], "source": "校园金融安全 100 题 · 第 77 题（答案 B）", "level": "基础"},
+      {"id": "q78", "title": "开通会员后你不再使用，却仍被按月扣费，最可能原因是", "category": "消费与借贷", "tags": ["消费与借贷", "题目78"], "scene": "不使用时及时关闭自动续费，避免持续扣费。", "signals": ["不使用时及时关闭自动续费，避免持续扣费"], "actions": ["未关闭自动续费/连续包年，需及时关闭"], "avoid": ["系统bug", "免费赠送", "别人盗刷"], "source": "校园金融安全 100 题 · 第 78 题（答案 B）", "level": "基础"},
+      {"id": "q79", "title": "把花呗、借呗等授信额度当作自己的“可支配收入”去消费，风险在于", "category": "消费与借贷", "tags": ["消费与借贷", "题目79"], "scene": "授信额度是需偿还的负债，不能当作收入挥霍。", "signals": ["授信额度是需偿还的负债，不能当作收入挥霍"], "actions": ["额度是负债，花掉要还，还可能利滚利"], "avoid": ["额度是免费的钱", "额度花不完会消失", "额度不用会过期"], "source": "校园金融安全 100 题 · 第 79 题（答案 B）", "level": "基础"},
+      {"id": "q80", "title": "为凑满“满300减50”，你多买了本不需要的商品，这属于", "category": "消费与借贷", "tags": ["消费与借贷", "题目80"], "scene": "为凑单买不需要的商品，是常见的消费陷阱。", "signals": ["为凑单买不需要的商品，是常见的消费陷阱"], "actions": ["被营销诱导的非理性消费"], "avoid": ["薅羊毛", "合理囤货", "省钱技巧"], "source": "校园金融安全 100 题 · 第 80 题（答案 B）", "level": "基础"},
+      {"id": "q81", "title": "在二手平台交易，卖家要求你微信私下直接转账付款，你应该", "category": "消费与借贷", "tags": ["消费与借贷", "题目81"], "scene": "私下转账无平台保障，遇骗难追回。", "signals": ["私下转账无平台保障，遇骗难追回"], "actions": ["走平台担保交易，拒绝私下付款"], "avoid": ["直接转账", "先付一半", "货到再付但走微信"], "source": "校园金融安全 100 题 · 第 81 题（答案 B）", "level": "基础"},
+      {"id": "q82", "title": "大促预购你交了定金，后来不想买了，关于定金说法正确的是", "category": "消费与借贷", "tags": ["消费与借贷", "题目82"], "scene": "定金具有担保性质，反悔可能不退，支付前看清规则。", "signals": ["定金具有担保性质，反悔可能不退，支付前看清规则"], "actions": ["定金可能不退，下单前要确认退款规则"], "avoid": ["一定全额退", "七天必退", "商家必须退"], "source": "校园金融安全 100 题 · 第 82 题（答案 B）", "level": "基础"},
+      {"id": "q83", "title": "把消费贷款用于赌博、炒币等高风险行为，后果是", "category": "消费与借贷", "tags": ["消费与借贷", "题目83"], "scene": "严禁用借贷资金参与投机赌博，风险极大。", "signals": ["严禁用借贷资金参与投机赌博，风险极大"], "actions": ["极易亏光并背上沉重债务，严禁如此使用"], "avoid": ["有机会翻本", "赚了就能还", "高收益能覆盖利息"], "source": "校园金融安全 100 题 · 第 83 题（答案 B）", "level": "基础"},
+      {"id": "q84", "title": "同样本金、利率和期限，复利计息的收益通常", "category": "基础素养", "tags": ["基础素养", "题目84"], "scene": "复利让利息再产生利息，长期收益高于单利。", "signals": ["复利让利息再产生利息，长期收益高于单利"], "actions": ["高于单利，因为利息也参与计息"], "avoid": ["低于单利", "和单利相同", "没有差别"], "source": "校园金融安全 100 题 · 第 84 题（答案 B）", "level": "基础"},
+      {"id": "q85", "title": "通货膨胀的直接结果是", "category": "基础素养", "tags": ["基础素养", "题目85"], "scene": "通胀导致货币购买力下降，应理性配置资产。", "signals": ["通胀导致货币购买力下降，应理性配置资产"], "actions": ["同样的钱买到的东西变少，购买力下降"], "avoid": ["钱更值钱", "存款收益自动增加", "工资自动上涨"], "source": "校园金融安全 100 题 · 第 85 题（答案 B）", "level": "基础"},
+      {"id": "q86", "title": "下列资产中流动性最高的是", "category": "基础素养", "tags": ["基础素养", "题目86"], "scene": "现金可随时用于支付，流动性最高。", "signals": ["现金可随时用于支付，流动性最高"], "actions": ["现金"], "avoid": ["房产", "定期存款", "收藏品"], "source": "校园金融安全 100 题 · 第 86 题（答案 A）", "level": "基础"},
+      {"id": "q87", "title": "投资收益率是指", "category": "基础素养", "tags": ["基础素养", "题目87"], "scene": "收益率=收益÷本金，衡量投资回报水平。", "signals": ["收益率=收益÷本金，衡量投资回报水平"], "actions": ["收益与投入本金的比率"], "avoid": ["投入本金总额", "投资期限", "手续费"], "source": "校园金融安全 100 题 · 第 87 题（答案 B）", "level": "基础"},
+      {"id": "q88", "title": "有人称付钱就能“修复”你的征信不良记录，正确判断", "category": "基础素养", "tags": ["基础素养", "题目88"], "scene": "征信不良记录不能花钱消除，所谓修复多是骗局。", "signals": ["征信不良记录不能花钱消除，所谓修复多是骗局"], "actions": ["征信无法花钱修复，属骗局"], "avoid": ["花钱就能搞定", "找中介更快", "交定金试试"], "source": "校园金融安全 100 题 · 第 88 题（答案 B）", "level": "基础"},
+      {"id": "q89", "title": "理财的收益性、安全性、流动性三者通常", "category": "基础素养", "tags": ["基础素养", "题目89"], "scene": "三者难以兼得，投资需权衡取舍。", "signals": ["三者难以兼得，投资需权衡取舍"], "actions": ["难以同时兼得，高收益伴随高风险"], "avoid": ["可以全部兼得", "互不影响", "高收益最安全"], "source": "校园金融安全 100 题 · 第 89 题（答案 B）", "level": "基础"},
+      {"id": "q90", "title": "关于银行存款和理财，说法正确的是", "category": "基础素养", "tags": ["基础素养", "题目90"], "scene": "存款受存款保险保护，理财不保本、有风险。", "signals": ["存款受存款保险保护，理财不保本、有风险"], "actions": ["存款有存款保险保障，理财有亏损风险"], "avoid": ["理财也受存款保险保障", "理财产品保本保息", "存款一定跑赢通胀"], "source": "校园金融安全 100 题 · 第 90 题（答案 B）", "level": "基础"},
+      {"id": "q91", "title": "判断一家金融机构是否正规，可看它是否", "category": "基础素养", "tags": ["基础素养", "题目91"], "scene": "正规金融机构持牌经营、接受监管，可查证。", "signals": ["正规金融机构持牌经营、接受监管，可查证"], "actions": ["持有金融牌照并受监管部门监管"], "avoid": ["广告打得响", "承诺高收益", "在微信上推广"], "source": "校园金融安全 100 题 · 第 91 题（答案 B）", "level": "基础"},
+      {"id": "q92", "title": "“不要把鸡蛋放在一个篮子里”体现的理财原则是", "category": "基础素养", "tags": ["基础素养", "题目92"], "scene": "分散投资可降低单一资产波动带来的风险。", "signals": ["分散投资可降低单一资产波动带来的风险"], "actions": ["分散投资以降低风险"], "avoid": ["集中投资", "越高收益越好", "只存定期"], "source": "校园金融安全 100 题 · 第 92 题（答案 B）", "level": "基础"},
+      {"id": "q93", "title": "同样年化收益下，越早开始投资，长期复利效果", "category": "基础素养", "tags": ["基础素养", "题目93"], "scene": "投资越早，复利积累的时间越长，终值越大。", "signals": ["投资越早，复利积累的时间越长，终值越大"], "actions": ["越明显，收益滚雪球越大"], "avoid": ["越差", "没有区别", "只和本金有关"], "source": "校园金融安全 100 题 · 第 93 题（答案 B）", "level": "基础"},
+      {"id": "q94", "title": "发现自己被骗后，最需要第一时间保存的是", "category": "求助处置", "tags": ["求助处置", "题目94"], "scene": "完整证据是报警和追款的关键依据。", "signals": ["完整证据是报警和追款的关键依据"], "actions": ["聊天记录、转账记录、对方账号等证据"], "avoid": ["对方的头像", "删掉聊天以免麻烦", "对方的语音"], "source": "校园金融安全 100 题 · 第 94 题（答案 B）", "level": "基础"},
+      {"id": "q95", "title": "收到好友微信借钱，对方要得很急，你应先", "category": "求助处置", "tags": ["求助处置", "题目95"], "scene": "冒充熟人借钱高发，务必先核实身份。", "signals": ["冒充熟人借钱高发，务必先核实身份"], "actions": ["电话或视频核实确实是本人再决定"], "avoid": ["马上转账", "先转一半", "按语音消息判断"], "source": "校园金融安全 100 题 · 第 95 题（答案 B）", "level": "基础"},
+      {"id": "q96", "title": "转账被骗后，除报警外，还可同时", "category": "求助处置", "tags": ["求助处置", "题目96"], "scene": "及时联系支付平台止付，与报警同步进行可提高追回概率。", "signals": ["及时联系支付平台止付，与报警同步进行可提高追回概率"], "actions": ["联系支付平台客服申请止付、冻结"], "avoid": ["只等对方退", "反复联系骗子", "网上找“追回机构”"], "source": "校园金融安全 100 题 · 第 96 题（答案 B）", "level": "基础"},
+      {"id": "q97", "title": "下面哪一项有助于防范电信诈骗", "category": "求助处置", "tags": ["求助处置", "题目97"], "scene": "反诈APP的预警、举报功能能有效辅助防范诈骗。", "signals": ["反诈APP的预警、举报功能能有效辅助防范诈骗"], "actions": ["安装国家反诈中心APP并开启预警"], "avoid": ["不装任何防护", "只要不接陌生电话", "只看群消息"], "source": "校园金融安全 100 题 · 第 97 题（答案 A）", "level": "基础"},
+      {"id": "q98", "title": "对方诱导你下载某“远程协作”APP并开启权限，你意识到可能被骗，应", "category": "求助处置", "tags": ["求助处置", "题目98"], "scene": "远程控制/共享屏幕会暴露密码验证码，发现立即止损报警。", "signals": ["远程控制/共享屏幕会暴露密码验证码，发现立即止损报警"], "actions": ["立即停止、卸载APP，修改密码并报警"], "avoid": ["继续配合", "观望一下", "卸载但什么都不做"], "source": "校园金融安全 100 题 · 第 98 题（答案 B）", "level": "基础"},
+      {"id": "q99", "title": "你刷单已垫资，对方称再垫一笔才能返款，你应该", "category": "求助处置", "tags": ["求助处置", "题目99"], "scene": "刷单是骗局，继续垫资只会越陷越深，应立即止损报警。", "signals": ["刷单是骗局，继续垫资只会越陷越深，应立即止损报警"], "actions": ["停止垫资，保留证据并报警"], "avoid": ["继续垫资", "换一个平台继续", "找对方理论"], "source": "校园金融安全 100 题 · 第 99 题（答案 B）", "level": "基础"},
+      {"id": "q100", "title": "被骗后情绪低落、害怕被责备，你正确的做法是", "category": "求助处置", "tags": ["求助处置", "题目100"], "scene": "及时求助既能止损又能获得支持，警惕“追回”类二次诈骗。", "signals": ["及时求助既能止损又能获得支持，警惕“追回”类二次诈骗"], "actions": ["及时告知辅导员、家人并报警求助，同时警惕二次诈骗"], "avoid": ["一个人扛着", "不再告诉任何人", "自己偷偷转账“翻本”"], "source": "校园金融安全 100 题 · 第 100 题（答案 B）", "level": "基础"}
+    ];
+
+    const scenarios = [
+      {
+        title: "兼职先交押金",
+        question: "你在群里看到“日结兼职，先交99元押金，马上安排”，最合适的第一步是？",
+        options: ["先交小额试试看", "停止付款，保存信息并通过学校或官方渠道核实", "再找两个同学一起交", "把身份证发给对方审核"],
+        correct: 1,
+        explanation: "先交钱的兼职要先按高风险处理。停止付款，保存聊天记录，不要继续提供身份或支付信息。",
+        cardId: "part-time"
+      },
+      {
+        title: "客服退款",
+        question: "陌生客服说订单异常，要你开屏幕共享才能退款，你会怎么做？",
+        options: ["按对方说的操作，退款要紧", "打开共享，但只看不操作", "挂断后自己打开官方App核实", "把短信验证码发过去"],
+        correct: 2,
+        explanation: "退款不需要屏幕共享或验证码。先挂断，再从官方App或官方客服渠道核实。",
+        cardId: "refund"
+      },
+      {
+        title: "月底缺口",
+        question: "生活费只剩一周，但你想买一双非必需球鞋，最稳妥的处理是？",
+        options: ["先用分期，反正每期很少", "借校园贷周转一下", "先算对月底余额的影响，必要时设24小时冷静期", "找同学借钱马上买"],
+        correct: 2,
+        explanation: "先看这笔消费对月底的真实影响，再决定是否暂停。借贷和分期不能解决消费缺口本身。",
+        cardId: "installment"
+      },
+      {
+        title: "验证码与账户",
+        question: "有人自称平台客服，说账户异常，要求你读出短信验证码。你应该？",
+        options: ["只读前四位", "先发截图确认", "不提供验证码，自己从官方渠道核实", "把验证码和身份证一起发过去"],
+        correct: 2,
+        explanation: "验证码是账户控制权，不要向任何人提供。通过官方渠道自行核实账户状态。",
+        cardId: "code"
+      }
+    ];
+
+    const emergencySteps = [
+      "停止继续付款或转账",
+      "保存聊天、转账、订单和对方账号信息",
+      "联系银行、支付平台或相关官方客服",
+      "联系学校保卫处、辅导员或可信成年人"
+    ];
+
+    const fallbackDailyRate = { conservative: 2000, balanced: 3000, flexible: 3600 };
+    let state = loadState();
+    let recordKind = "expense";
+    let activeCategory = "全部";
+    let currentScenario = 0;
+    let selectedScenarioOption = null;
+    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let tabInkAnimation = null;
+    let chartSnapPoints = [];
+    let activeChartPoint = 0;
+    let chartCounterValue = 0;
+    let chartCounterTarget = 0;
+    let chartCounterFrame = 0;
+    let weatherSettleAnimation = null;
+    let weatherTracking = false;
+    let weatherTravel = 0;
+    let suppressWeatherClick = false;
+    let sheetDragActive = false;
+    let sheetDragStartY = 0;
+    let sheetDragLastY = 0;
+    let sheetDragLastTime = 0;
+    let sheetDragVelocity = 0;
+    let sheetDragOffset = 0;
+    let sheetAnimation = null;
+    const pressedButtons = new WeakSet();
+    const buttonAnimations = new WeakMap();
+    let menuOpen = false;
+    let menuTrigger = null;
+    let contextTipTimer = 0;
+    let drawerOpen = false;
+    let drawerReturnFocus = null;
+    let segmentIndex = 0;
+    let segmentDragging = false;
+    let segmentPointerStartX = 0;
+    let segmentPointerStartTime = 0;
+    let segmentStartPercent = 0;
+    let segmentCurrentPercent = 0;
+    let segmentFrame = 0;
+    let calendarCursor = new Date(Date.UTC(2026, 9, 1));
+    let selectedCalendarDate = TODAY;
+    let confirmCallback = null;
+    let confirmReturnFocus = null;
+    let cardDetailOrigin = null;
+    let cardDetailReturnFocus = null;
+    let scrolledDirection = 0;
+    let headerFrame = 0;
+    let pullStartY = null;
+    let pullDistance = 0;
+    let pullLastTime = 0;
+    let pullVelocity = 0;
+
+    function byId(id) { return document.getElementById(id); }
+    function motionEnabled() { return !motionPreference.matches; }
+    function clampValue(value, min, max) { return Math.min(max, Math.max(min, value)); }
+    function springFrames(from, to, velocity = 0, stiffness = 190, damping = 26, steps = 44) {
+      const frames = [];
+      let position = from;
+      let speed = velocity;
+      const dt = 1 / 60;
+      for (let index = 0; index <= steps; index += 1) {
+        const acceleration = (to - position) * stiffness - speed * damping;
+        speed += acceleration * dt;
+        position += speed * dt;
+        frames.push({ transform: `translateY(${position.toFixed(2)}px)`, offset: index / steps });
+      }
+      frames[frames.length - 1] = { transform: `translateY(${to}px)`, offset: 1 };
+      return frames;
+    }
+    function prepareStagger(container, selector) {
+      const items = [...container.querySelectorAll(selector)];
+      if (!motionEnabled()) {
+        items.forEach((item) => item.classList.add("stagger-in"));
+        return;
+      }
+      items.forEach((item, index) => {
+        item.style.setProperty("--stagger-index", index);
+        item.classList.add("stagger-pending");
+      });
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        items.forEach((item) => {
+          item.classList.remove("stagger-pending");
+          item.classList.add("stagger-in");
+        });
+      }));
+    }
+    function moveTabInk(name, animate = true) {
+      const tabbar = byId("tabbar");
+      const ink = byId("tabInk");
+      const active = [...tabbar.querySelectorAll(".tab")].find((tab) => tab.dataset.screen === name);
+      if (!active || tabbar.hidden) {
+        ink.style.width = "0px";
+        return;
+      }
+      const navRect = tabbar.getBoundingClientRect();
+      const activeRect = active.getBoundingClientRect();
+      const oldRect = ink.getBoundingClientRect();
+      const from = oldRect.width ? oldRect.left - navRect.left : activeRect.left - navRect.left + (activeRect.width - 34) / 2;
+      const to = activeRect.left - navRect.left + (activeRect.width - 34) / 2;
+      const distance = Math.abs(to - from);
+      ink.style.width = "34px";
+      tabInkAnimation?.cancel();
+      if (animate && motionEnabled() && distance > 1) {
+        const anchor = to > from ? from : to;
+        const stretchedWidth = 34 + distance;
+        const animation = ink.animate([
+          { transform: `translateX(${from}px)`, width: "34px" },
+          { transform: `translateX(${anchor}px)`, width: `${stretchedWidth}px`, offset: .58 },
+          { transform: `translateX(${to}px)`, width: "34px" }
+        ], { duration: 400, easing: "cubic-bezier(.22,.8,.24,1)", fill: "forwards" });
+        tabInkAnimation = animation;
+        animation.finished.then(
+          () => { if (tabInkAnimation === animation) ink.style.transform = `translateX(${to}px)`; },
+          () => {}
+        );
+      } else {
+        ink.style.transform = `translateX(${to}px)`;
+      }
+    }
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+      }[char]));
+    }
+    function formatMoney(cents) {
+      const value = (cents || 0) / 100;
+      return `¥${value.toFixed(value % 1 === 0 ? 0 : 2)}`;
+    }
+    function parseMoney(value) {
+      const number = Number(String(value).trim());
+      if (!Number.isFinite(number) || number <= 0) throw new Error("请输入大于0的金额");
+      return Math.round(number * 100);
+    }
+    function parseDate(value) {
+      const [year, month, day] = value.split("-").map(Number);
+      return new Date(Date.UTC(year, month - 1, day));
+    }
+    function isoDate(date) { return date.toISOString().slice(0, 10); }
+    function addDays(value, amount) {
+      const date = parseDate(value);
+      date.setUTCDate(date.getUTCDate() + amount);
+      return isoDate(date);
+    }
+    function daysBetween(start, end) {
+      return Math.max(1, Math.round((parseDate(end) - parseDate(start)) / 86400000));
+    }
+    function formatDay(value) {
+      const date = parseDate(value);
+      return `${date.getUTCMonth() + 1}月${date.getUTCDate()}日`;
+    }
+    function formatLongDay(value) {
+      const date = parseDate(value);
+      return `${date.getUTCMonth() + 1}月${date.getUTCDate()}日 · ${WEEKDAYS[date.getUTCDay()]}`;
+    }
+    function median(values) {
+      if (!values.length) return 0;
+      const sorted = [...values].sort((a, b) => a - b);
+      const middle = Math.floor(sorted.length / 2);
+      return sorted.length % 2 ? sorted[middle] : Math.round((sorted[middle - 1] + sorted[middle]) / 2);
+    }
+    function makeDefaultState() {
+      return {
+        schemaVersion: 1,
+        profile: null,
+        period: { startDate: TODAY, currentBalanceCents: 0 },
+        expenses: [],
+        events: [],
+        tasks: {},
+        learning: [],
+        pauses: [],
+        emergency: {}
+      };
+    }
+    function loadState() {
+      try {
+        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return stored && stored.schemaVersion === 1 ? stored : makeDefaultState();
+      } catch {
+        return makeDefaultState();
+      }
+    }
+    function saveState() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+    function resetState() { state = makeDefaultState(); saveState(); }
+    function showToast(message) {
+      const toast = byId("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      clearTimeout(showToast.timer);
+      showToast.timer = setTimeout(() => toast.classList.remove("show"), 2200);
+    }
+    function openActionMenu(trigger) {
+      const menu = byId("actionMenu");
+      const rect = trigger.getBoundingClientRect();
+      const width = 212;
+      const left = clampValue(rect.right - width, 8, window.innerWidth - width - 8);
+      const estimatedHeight = 198;
+      const top = rect.bottom + 8 + estimatedHeight < window.innerHeight
+        ? rect.bottom + 8
+        : Math.max(8, rect.top - estimatedHeight - 8);
+      const originX = clampValue(rect.left + rect.width / 2 - left, 18, width - 18);
+      const originY = top > rect.top ? 0 : estimatedHeight;
+      menu.style.left = `${left}px`;
+      menu.style.top = `${top}px`;
+      menu.style.setProperty("--menu-origin-x", `${originX}px`);
+      menu.style.setProperty("--menu-origin-y", `${originY}px`);
+      menu.classList.add("open");
+      menuOpen = true;
+      menuTrigger = trigger;
+      trigger.setAttribute("aria-expanded", "true");
+      requestAnimationFrame(() => menu.querySelector("button")?.focus());
+    }
+    function closeActionMenu(restoreFocus = false) {
+      const menu = byId("actionMenu");
+      menu.classList.remove("open");
+      menuOpen = false;
+      menuTrigger?.setAttribute("aria-expanded", "false");
+      if (restoreFocus && menuTrigger?.isConnected) menuTrigger.focus();
+      menuTrigger = null;
+    }
+    function showContextTip(anchor = byId("moreButton")) {
+      const tip = byId("contextTip");
+      const shell = byId("appShell").getBoundingClientRect();
+      const rect = anchor?.getBoundingClientRect();
+      if (rect) {
+        tip.style.setProperty("--tip-x", `${clampValue(rect.left + rect.width / 2 - shell.left, 24, shell.width - 24)}px`);
+      }
+      tip.classList.add("show");
+      window.clearTimeout(contextTipTimer);
+      contextTipTimer = window.setTimeout(() => tip.classList.remove("show"), 4200);
+    }
+    function closeContextTip() {
+      window.clearTimeout(contextTipTimer);
+      byId("contextTip").classList.remove("show");
+    }
+    function openDecisionDrawer(trigger = null) {
+      if (drawerOpen) return;
+      drawerReturnFocus = trigger || document.activeElement;
+      drawerOpen = true;
+      byId("decisionDrawer").classList.add("open");
+      byId("decisionDrawer").setAttribute("aria-hidden", "false");
+      byId("drawerScrim").classList.add("open");
+      byId("appShell").classList.add("is-drawer-open");
+      window.setTimeout(() => byId("closeDecisionDrawer").focus(), 80);
+    }
+    function closeDecisionDrawer(restoreFocus = true) {
+      if (!drawerOpen) return;
+      drawerOpen = false;
+      byId("decisionDrawer").classList.remove("open");
+      byId("decisionDrawer").setAttribute("aria-hidden", "true");
+      byId("drawerScrim").classList.remove("open");
+      byId("appShell").classList.remove("is-drawer-open");
+      if (restoreFocus && drawerReturnFocus?.isConnected) drawerReturnFocus.focus();
+      drawerReturnFocus = null;
+    }
+    function requestConfirmation({ title, body, confirmLabel = "确认", successTitle = "已完成", successCopy = "页面会继续更新。", onConfirm }) {
+      const dialog = byId("confirmDialog");
+      dialog.hidden = false;
+      dialog.classList.remove("is-complete");
+      byId("confirmTitle").textContent = title;
+      byId("confirmBody").textContent = body;
+      byId("confirmAction").textContent = confirmLabel;
+      byId("confirmSuccessTitle").textContent = successTitle;
+      byId("confirmSuccessCopy").textContent = successCopy;
+      confirmCallback = onConfirm;
+      confirmReturnFocus = document.activeElement;
+      const panel = byId("confirmPanel");
+      if (motionEnabled()) {
+        panel.animate([
+          { transform: "translateY(20px) scale(.86)", opacity: 0 },
+          { transform: "translateY(-3px) scale(1.018)", opacity: 1, offset: .7 },
+          { transform: "translateY(0) scale(1)", opacity: 1 }
+        ], { duration: 380, easing: "linear" });
+      }
+      window.setTimeout(() => byId("confirmAction").focus(), 60);
+    }
+    function closeConfirmation(restoreFocus = true) {
+      const dialog = byId("confirmDialog");
+      dialog.hidden = true;
+      dialog.classList.remove("is-complete");
+      confirmCallback = null;
+      if (restoreFocus && confirmReturnFocus?.isConnected) confirmReturnFocus.focus();
+      confirmReturnFocus = null;
+    }
+    function completeConfirmation() {
+      const dialog = byId("confirmDialog");
+      if (dialog.classList.contains("is-complete")) return;
+      dialog.classList.add("is-complete");
+      const panel = byId("confirmPanel");
+      panel.animate([
+        { transform: "scale(1)" },
+        { transform: "scale(.965)", offset: .25 },
+        { transform: "scale(1.025)", offset: .62 },
+        { transform: "scale(1)" }
+      ], { duration: 430, easing: "linear" });
+      const callback = confirmCallback;
+      confirmCallback = null;
+      callback?.();
+      window.setTimeout(() => closeConfirmation(false), 900);
+    }
+    function updateSettlement(forecast) {
+      const start = addDays(TODAY, -6);
+      const recent = state.expenses
+        .filter((expense) => expense.date >= start && expense.date <= TODAY)
+        .sort((a, b) => b.date.localeCompare(a.date));
+      const total = recent.reduce((sum, expense) => sum + expense.amountCents, 0);
+      byId("settlementTotal").textContent = formatMoney(total);
+      byId("settlementMeta").textContent = recent.length ? `${recent.length} 笔支出 · 点开核对` : `余额预测 ${formatMoney(forecast.projected)} · 暂无支出`;
+      byId("settlementList").innerHTML = recent.length
+        ? recent.slice(0, 4).map((expense) => `<div class="settlement-row"><span>${formatDay(expense.date)} · ${escapeHtml(expense.category)}</span><strong>${formatMoney(expense.amountCents)}</strong></div>`).join("")
+        : `<div class="settlement-row"><span>今天还没有记录支出</span><strong>先记一笔</strong></div>`;
+    }
+    function toggleSettlement(force) {
+      const root = byId("settlement");
+      const expanded = typeof force === "boolean" ? force : !root.classList.contains("expanded");
+      root.classList.toggle("expanded", expanded);
+      byId("settlementBar").setAttribute("aria-expanded", String(expanded));
+    }
+    function renderSegmentSummary(forecast, tasks) {
+      const nextTask = tasks.find((task) => task.status !== "done");
+      byId("segmentFocusTitle").textContent = nextTask?.title || "今天的关键动作已完成";
+      byId("segmentFocusCopy").textContent = nextTask ? `来源：${nextTask.source}。先做完这一件，再刷新预测。` : "可以检查明天的安排，或记下新支出。";
+      const card = recommendedCard();
+      byId("segmentSafetyTitle").textContent = card.title;
+      byId("segmentSafetyCopy").textContent = `${card.category} · ${card.scene}`;
+      const weekExpenses = state.expenses.filter((expense) => expense.date >= addDays(TODAY, -6) && expense.date <= TODAY);
+      const spent = weekExpenses.reduce((sum, expense) => sum + expense.amountCents, 0);
+      byId("segmentLedgerCopy").textContent = weekExpenses.length ? `最近 7 天共记录 ${weekExpenses.length} 笔，消费节奏会直接影响余额预测。` : "还没有支出记录，当前预测使用消费画像估算。";
+      byId("segmentMetrics").innerHTML = `<span>本周已花<b>${formatMoney(spent)}</b></span><span>预计余额<b>${formatMoney(forecast.projected)}</b></span>`;
+    }
+    function segmentButton(index) {
+      return byId("segmentTabs").querySelector(`[data-segment="${index}"]`);
+    }
+    function setSegment(index, animate = true) {
+      const nextIndex = clampValue(Number(index) || 0, 0, 2);
+      const changed = nextIndex !== segmentIndex;
+      segmentIndex = nextIndex;
+      const buttons = [...byId("segmentTabs").querySelectorAll("[data-segment]")];
+      buttons.forEach((button, buttonIndex) => {
+        const active = buttonIndex === segmentIndex;
+        button.classList.toggle("active", active);
+        button.setAttribute("aria-selected", String(active));
+        button.tabIndex = active ? 0 : -1;
+      });
+      const active = segmentButton(segmentIndex);
+      const thumb = byId("segmentThumb");
+      const tabs = byId("segmentTabs");
+      const targetLeft = active.offsetLeft + 2;
+      const targetWidth = active.offsetWidth - 4;
+      const track = byId("segmentTrack");
+      const transform = `translateX(${-segmentIndex * 100}%)`;
+      if (animate && motionEnabled() && changed) {
+        const currentLeft = parseFloat(thumb.style.left || "0");
+        const currentWidth = parseFloat(thumb.style.width || String(targetWidth));
+        const distance = Math.abs(targetLeft - currentLeft);
+        thumb.animate([
+          { left: `${currentLeft}px`, width: `${currentWidth}px` },
+          { left: `${Math.min(currentLeft, targetLeft)}px`, width: `${Math.max(currentWidth, targetWidth) + distance * .34}px`, offset: .56 },
+          { left: `${targetLeft}px`, width: `${targetWidth}px` }
+        ], { duration: 380, easing: "cubic-bezier(.22,.8,.24,1)", fill: "forwards" });
+        track.animate([
+          { transform: track.style.transform || "translateX(0)" },
+          { transform }
+        ], { duration: 380, easing: "cubic-bezier(.16,1,.3,1)", fill: "forwards" });
+      }
+      thumb.style.left = `${targetLeft}px`;
+      thumb.style.width = `${targetWidth}px`;
+      track.style.transform = transform;
+      if (changed) {
+        const panel = byId("segmentTrack").children[segmentIndex];
+        panel.animate?.([
+          { opacity: .35, transform: "translateY(4px)" },
+          { opacity: 1, transform: "translateY(0)" }
+        ], { duration: 260, easing: "ease-out" });
+      }
+      window.clearTimeout(setSegment.cleanup);
+      setSegment.cleanup = window.setTimeout(() => {
+        thumb.getAnimations().forEach((animation) => {
+          if (animation.playState === "finished") animation.cancel();
+        });
+        track.getAnimations().forEach((animation) => {
+          if (animation.playState === "finished") animation.cancel();
+        });
+      }, 420);
+    }
+    function beginSegmentGesture(event, surface) {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      byId("segmentTrack").getAnimations().forEach((animation) => animation.cancel());
+      byId("segmentThumb").getAnimations().forEach((animation) => animation.cancel());
+      segmentDragging = true;
+      segmentPointerStartX = event.clientX;
+      segmentPointerStartTime = performance.now();
+      segmentCurrentPercent = segmentIndex * 100;
+      if (surface.id === "segmentViewport") surface.setPointerCapture?.(event.pointerId);
+      byId("segmentThumb").style.transformOrigin = event.clientX > window.innerWidth / 2 ? "right center" : "left center";
+    }
+    function moveSegmentGesture(event) {
+      if (!segmentDragging) return;
+      const delta = event.clientX - segmentPointerStartX;
+      const viewportWidth = byId("segmentViewport").clientWidth || 1;
+      const percent = clampValue(segmentIndex * 100 - delta / viewportWidth * 100, 0, 200);
+      segmentCurrentPercent = percent;
+      byId("segmentTrack").style.transform = `translateX(${-percent}%)`;
+      const tabsRect = byId("segmentTabs").getBoundingClientRect();
+      const base = tabsRect.width / 3;
+      const leading = clampValue(event.clientX - tabsRect.left - base / 2, 0, tabsRect.width - base);
+      const stretch = Math.min(24, Math.abs(delta) * .05);
+      const thumb = byId("segmentThumb");
+      thumb.style.left = `${leading}px`;
+      thumb.style.width = `${Math.max(50, base - 4 + stretch)}px`;
+    }
+    function finishSegmentGesture(event) {
+      if (!segmentDragging) return;
+      segmentDragging = false;
+      const delta = event.clientX - segmentPointerStartX;
+      const elapsed = Math.max(1, performance.now() - segmentPointerStartTime);
+      const velocity = delta / elapsed;
+      let target = segmentIndex;
+      if (delta < -34 || velocity < -.45) target = segmentIndex + 1;
+      if (delta > 34 || velocity > .45) target = segmentIndex - 1;
+      setSegment(clampValue(target, 0, 2), true);
+    }
+    function renderCategoryPicker() {
+      byId("activeCategoryLabel").textContent = activeCategory === "全部" ? "全部分类" : activeCategory;
+      byId("categoryPanel").innerHTML = CATEGORIES.map((category) => `<button class="chip ${category === activeCategory ? "active" : ""}" type="button" data-category="${category}">${category}</button>`).join("");
+    }
+    function setCategoryPicker(open) {
+      byId("categoryPicker").classList.toggle("open", open);
+      byId("categoryTrigger").setAttribute("aria-expanded", String(open));
+    }
+    function formatCalendarMonth(date) {
+      return `${date.getUTCFullYear()}年${date.getUTCMonth() + 1}月`;
+    }
+    function renderCalendar() {
+      const year = calendarCursor.getUTCFullYear();
+      const month = calendarCursor.getUTCMonth();
+      const firstDay = new Date(Date.UTC(year, month, 1)).getUTCDay();
+      const days = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+      byId("calendarMonth").textContent = formatCalendarMonth(calendarCursor);
+      const cells = Array.from({ length: firstDay }, () => `<span class="calendar-blank"></span>`);
+      for (let day = 1; day <= days; day += 1) {
+        const value = `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+        cells.push(`<button type="button" data-calendar-date="${value}" class="${value === selectedCalendarDate ? "is-selected" : ""} ${value === TODAY ? "is-today" : ""}" aria-label="${value}">${day}</button>`);
+      }
+      byId("calendarGrid").innerHTML = cells.join("");
+    }
+    function setDatePicker(open) {
+      byId("dateField").classList.toggle("open", open);
+      byId("dateTrigger").setAttribute("aria-expanded", String(open));
+      if (open) {
+        selectedCalendarDate = byId("recordDate").value || TODAY;
+        const [year, month] = selectedCalendarDate.split("-").map(Number);
+        calendarCursor = new Date(Date.UTC(year, month - 1, 1));
+        renderCalendar();
+      }
+    }
+    function updateDateValue(value) {
+      selectedCalendarDate = value;
+      byId("recordDate").value = value;
+      byId("recordDateLabel").textContent = formatDay(value);
+      renderCalendar();
+      window.setTimeout(() => {
+        setDatePicker(false);
+        byId("dateTrigger").focus();
+      }, motionEnabled() ? 260 : 0);
+    }
+    function applyStickyMotion() {
+      headerFrame = 0;
+      const scrollY = Math.max(0, window.scrollY);
+      const progress = clampValue(scrollY / 160, 0, 1);
+      const header = document.querySelector(".topbar");
+      header.classList.toggle("is-compact", scrollY > 24);
+      const pullScale = pullDistance / 900;
+      const heading = byId("homeHeading");
+      const homeHead = byId("homeHead");
+      const weatherStage = byId("weatherStage");
+      if (heading) {
+        heading.style.transform = `translateY(${-progress * 18}px) scale(${1 - progress * .14 + pullScale})`;
+        heading.style.opacity = `${1 - progress * .72}`;
+      }
+      if (homeHead) homeHead.style.opacity = `${1 - progress * .12}`;
+      if (weatherStage) {
+        weatherStage.style.transform = `translate3d(0, ${scrollY * .22 - pullDistance * .16}px, 0) scale(${1 - progress * .025 + pullScale})`;
+      }
+    }
+    function scheduleStickyMotion() {
+      if (!headerFrame) headerFrame = requestAnimationFrame(applyStickyMotion);
+    }
+    function resetPullMotion() {
+      const stage = byId("weatherStage");
+      const heading = byId("homeHeading");
+      if (motionEnabled()) {
+        stage.animate([
+          { transform: stage.style.transform || "none" },
+          { transform: "translate3d(0,0,0)" }
+        ], { duration: 420, easing: "cubic-bezier(.16,1,.3,1)" });
+        heading.animate([
+          { transform: heading.style.transform || "none" },
+          { transform: "scale(1)" }
+        ], { duration: 380, easing: "cubic-bezier(.22,1.35,.36,1)" });
+      }
+      pullDistance = 0;
+      scheduleStickyMotion();
+    }
+    function showScreen(name) {
+      const hasProfile = Boolean(state.profile);
+      if (!hasProfile && name !== "onboarding") name = "onboarding";
+      const screenOrder = ["onboarding", "home", "today", "safety", "profile"];
+      const current = document.querySelector(".screen.active");
+      const currentName = current?.id.replace("Screen", "") || "onboarding";
+      const direction = screenOrder.indexOf(name) >= screenOrder.indexOf(currentName) ? "right" : "left";
+      document.querySelectorAll(".screen").forEach((screen) => {
+        screen.classList.remove("active", "screen-enter-right", "screen-enter-left");
+      });
+      const nextScreen = byId(`${name}Screen`);
+      nextScreen.classList.add("active", `screen-enter-${direction}`);
+      document.querySelectorAll(".tab").forEach((tab) => {
+        tab.classList.toggle("active", tab.dataset.screen === name);
+      });
+      const activeIcon = document.querySelector(`.tab[data-screen="${name}"] span`);
+      if (activeIcon && motionEnabled() && name !== currentName) {
+        activeIcon.animate([
+          { transform: "scale(.72, 1.12)" },
+          { transform: "scale(1.14, .9)", offset: .58 },
+          { transform: "scale(1)" }
+        ], { duration: 360, easing: "cubic-bezier(.22,1.35,.36,1)" });
+      }
+      byId("tabbar").hidden = !hasProfile;
+      requestAnimationFrame(() => moveTabInk(name));
+      if (name === "home") renderHome();
+      if (name === "today") renderToday();
+      if (name === "safety") renderSafety();
+      if (name === "profile") renderProfile();
+      window.clearTimeout(showScreen.cleanup);
+      showScreen.cleanup = window.setTimeout(() => nextScreen.classList.remove("screen-enter-right", "screen-enter-left"), 340);
+    }
+    function openOverlay(id) {
+      document.querySelectorAll(".overlay").forEach((overlay) => {
+        overlay.hidden = overlay.id !== id;
+      });
+      byId(id).hidden = false;
+    }
+    function closeOverlay(id) {
+      if (id === "recordModal") {
+        closeRecordSheet();
+        return;
+      }
+      if (id === "cardView") {
+        closeCardDetail();
+        return;
+      }
+      byId(id).hidden = true;
+    }
+
+    function getDailyExpenseRate() {
+      const totals = {};
+      state.expenses.forEach((expense) => {
+        totals[expense.date] = (totals[expense.date] || 0) + expense.amountCents;
+      });
+      const daily = Object.values(totals).slice(-14);
+      return daily.length >= 7
+        ? median(daily)
+        : fallbackDailyRate[state.profile?.spendingProfile] || 3000;
+    }
+    function calculateForecast() {
+      if (!state.profile) return null;
+      const days = daysBetween(TODAY, state.profile.nextIncomeDate);
+      const dailyRate = getDailyExpenseRate();
+      const fixed = (state.profile.fixedExpensesCents || []).reduce((sum, item) => sum + item.amountCents, 0);
+      const eventTotal = state.events.reduce((sum, event) => sum + event.amountCents, 0);
+      const projected = state.period.currentBalanceCents - fixed - eventTotal - dailyRate * days;
+      const ratio = projected / state.profile.monthlyBudgetCents;
+      const weather = projected < 0 ? "storm" : ratio <= .1 ? "rain" : ratio <= .2 ? "cloudy" : "sunny";
+      const riskValues = [
+        ["计划事件", eventTotal],
+        ["日常消费", dailyRate * days],
+        ["固定支出", fixed]
+      ].sort((a, b) => b[1] - a[1]);
+      const points = [];
+      let balance = state.period.currentBalanceCents - fixed;
+      let lowDate = null;
+      for (let day = 0; day <= days; day += 1) {
+        const date = addDays(TODAY, day);
+        const eventCost = state.events
+          .filter((event) => event.date === date)
+          .reduce((sum, event) => sum + event.amountCents, 0);
+        balance -= dailyRate + eventCost;
+        points.push({ date, balanceCents: balance });
+        if (!lowDate && balance <= state.profile.monthlyBudgetCents * .1) lowDate = date;
+      }
+      return {
+        days, dailyRate, fixed, eventTotal, projected, weather, lowDate, points,
+        riskSource: riskValues[0][0],
+        confidence: Object.keys(state.expenses.reduce((map, item) => ({ ...map, [item.date]: true }), {})).length >= 7 ? "正常" : "估算"
+      };
+    }
+    function weatherCopy(weather) {
+      return {
+        sunny: ["晴天", "☀️", "钱包有缓冲，按计划走", "当前节奏下，到账前仍有比较充足的空间。"],
+        cloudy: ["多云", "🌤️", "月底有一点紧张", "留意接下来的计划事件，提前留出一笔缓冲。"],
+        rain: ["阵雨", "🌧️", "月底可能会紧张", "现在调整还来得及，先减少非必需支出。"],
+        storm: ["暴雨", "⛈️", "到账前可能出现缺口", "先停止不必要消费，别用借贷解决消费缺口。"]
+      }[weather];
+    }
+    function recommendedCard() {
+      const forecast = calculateForecast();
+      if (!forecast) return cards[0];
+      if (forecast.weather === "storm" || forecast.weather === "rain") return cards.find((card) => card.id === "loan");
+      if (forecast.weather === "cloudy") return cards.find((card) => card.id === "renewal");
+      return cards.find((card) => card.id === "part-time");
+    }
+
+    function renderHome() {
+      if (!state.profile) { showScreen("onboarding"); return; }
+      const forecast = calculateForecast();
+      const [label, icon, headline, sub] = weatherCopy(forecast.weather);
+      byId("todayLabel").textContent = formatLongDay(TODAY);
+      byId("weatherCard").className = `weather-card weather-${forecast.weather}`;
+      byId("weatherIcon").textContent = icon;
+      byId("weatherLabel").textContent = label;
+      byId("confidenceLabel").textContent = forecast.confidence;
+      byId("weatherHeadline").textContent = headline;
+      byId("weatherSub").textContent = sub;
+      byId("projectedBalance").textContent = formatMoney(forecast.projected);
+      byId("lowBalanceDate").textContent = forecast.lowDate ? formatDay(forecast.lowDate) : "暂未发现";
+      byId("riskSource").textContent = forecast.riskSource;
+      byId("riskStrip").innerHTML = `<span>☼</span><div><strong>${forecast.riskSource}是当前最大风险</strong>${forecast.confidence === "估算" ? "目前记录还不多，记账3天后预测会更准。" : "预测基于最近14天的消费节奏，不是收益承诺。"}</div>`;
+      drawChart(forecast);
+      const tasks = ensureTasks();
+      byId("homeTasks").innerHTML = tasks.slice(0, 2).map((task) => taskMarkup(task, false)).join("");
+      prepareStagger(byId("homeTasks"), ".task");
+      const card = recommendedCard();
+      byId("homeSafety").innerHTML = `<div class="safety-mini-icon">◇</div><div class="safety-mini-copy"><strong>${escapeHtml(card.title)}</strong><span>${escapeHtml(card.category)} · ${escapeHtml(card.level)}</span></div>`;
+      byId("homeSafety").onclick = () => openCard(card.id, byId("homeSafety"));
+      updateSettlement(forecast);
+      renderSegmentSummary(forecast, tasks);
+      setSegment(segmentIndex, false);
+      bindTaskActions(byId("homeTasks"));
+      scheduleStickyMotion();
+    }
+    function drawChart(forecast) {
+      const svg = byId("balanceChart");
+      const pointLayer = byId("chartPointLayer");
+      const chartViewport = byId("chartViewport");
+      const width = 760, height = 140, pad = 48;
+      const balances = forecast.points.map((point) => point.balanceCents);
+      const min = Math.min(...balances, 0);
+      const max = Math.max(...balances, state.profile.monthlyBudgetCents);
+      const range = Math.max(1, max - min);
+      const x = (index) => pad + (index / Math.max(1, forecast.points.length - 1)) * (width - pad * 2);
+      const y = (value) => height - pad - ((value - min) / range) * (height - pad * 2);
+      const line = forecast.points.map((point, index) => `${index ? "L" : "M"}${x(index).toFixed(1)},${y(point.balanceCents).toFixed(1)}`).join(" ");
+      const area = `${line} L${x(forecast.points.length - 1)},${height - pad} L${pad},${height - pad} Z`;
+      svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+      svg.innerHTML = `
+        <defs><linearGradient id="areaGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#2f8c78" stop-opacity=".22"/><stop offset="1" stop-color="#2f8c78" stop-opacity="0"/></linearGradient></defs>
+        <line x1="${pad}" y1="${y(state.profile.monthlyBudgetCents * .2)}" x2="${width-pad}" y2="${y(state.profile.monthlyBudgetCents * .2)}" stroke="#dce8e1" stroke-dasharray="4 5"/>
+        <line x1="${pad}" y1="${y(0)}" x2="${width-pad}" y2="${y(0)}" stroke="#dce8e1"/>
+        <path d="${area}" fill="url(#areaGradient)"/>
+        <path d="${line}" fill="none" stroke="#2f8c78" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="${pad}" y="${height - 3}" fill="#6f817a" font-size="10">今天</text>
+        <text x="${width - pad}" y="${height - 3}" fill="#6f817a" font-size="10" text-anchor="end">到账日</text>
+      `;
+      const sampleCount = Math.min(8, forecast.points.length);
+      const sampleIndexes = [...new Set(Array.from({ length: sampleCount }, (_, index) =>
+        Math.round(index * (forecast.points.length - 1) / Math.max(1, sampleCount - 1))
+      ))];
+      chartSnapPoints = sampleIndexes.map((pointIndex, snapIndex) => {
+        const point = forecast.points[pointIndex];
+        const daysLater = daysBetween(TODAY, point.date);
+        return {
+          ...point,
+          x: x(pointIndex),
+          y: y(point.balanceCents),
+          label: snapIndex === 0 ? "今天" : snapIndex === sampleIndexes.length - 1 ? "到账前" : `${daysLater} 天后`
+        };
+      });
+      pointLayer.innerHTML = chartSnapPoints.map((point, index) => `
+        <button class="chart-point ${index === 0 ? "active" : ""}" type="button"
+          style="left:${point.x}px;top:${point.y}px"
+          data-chart-index="${index}"
+          aria-label="${formatDay(point.date)}，预计余额${formatMoney(point.balanceCents)}"></button>
+      `).join("");
+      requestAnimationFrame(() => {
+        chartViewport.scrollLeft = centerChartPoint(0);
+        setActiveChartPoint(0, false);
+      });
+    }
+    function centerChartPoint(index) {
+      const viewport = byId("chartViewport");
+      const point = byId("chartPointLayer").children[index];
+      return point ? point.offsetLeft - viewport.clientWidth / 2 + 19 : 0;
+    }
+    function setActiveChartPoint(index, snap = false) {
+      if (!chartSnapPoints.length) return;
+      activeChartPoint = clampValue(index, 0, chartSnapPoints.length - 1);
+      [...byId("chartPointLayer").children].forEach((point, pointIndex) => {
+        point.classList.toggle("active", pointIndex === activeChartPoint);
+      });
+      const point = chartSnapPoints[activeChartPoint];
+      chartCounterTarget = point.balanceCents;
+      byId("chartFocusLabel").textContent = point.label;
+      byId("chartFocusDate").textContent = formatDay(point.date);
+      if (!chartCounterFrame) chartCounterFrame = requestAnimationFrame(updateChartCounter);
+      if (snap) {
+        byId("chartViewport").scrollTo({
+          left: centerChartPoint(activeChartPoint),
+          behavior: motionEnabled() ? "smooth" : "auto"
+        });
+      }
+    }
+    function updateChartCounter() {
+      if (!motionEnabled()) chartCounterValue = chartCounterTarget;
+      else {
+        chartCounterValue += (chartCounterTarget - chartCounterValue) * .2;
+        if (Math.abs(chartCounterTarget - chartCounterValue) < .5) chartCounterValue = chartCounterTarget;
+      }
+      byId("chartFocusValue").textContent = formatMoney(Math.round(chartCounterValue));
+      chartCounterFrame = chartCounterValue !== chartCounterTarget ? requestAnimationFrame(updateChartCounter) : 0;
+    }
+    function updateChartFromScroll() {
+      if (!chartSnapPoints.length) return;
+      const viewport = byId("chartViewport");
+      const center = viewport.scrollLeft + viewport.clientWidth / 2;
+      let closest = 0;
+      let distance = Infinity;
+      chartSnapPoints.forEach((point, index) => {
+        const current = Math.abs(point.x - center);
+        if (current < distance) { closest = index; distance = current; }
+      });
+      if (closest !== activeChartPoint) setActiveChartPoint(closest, false);
+    }
+    function setWeatherLight(clientX, clientY) {
+      const card = byId("weatherCard");
+      const rect = card.getBoundingClientRect();
+      card.style.setProperty("--mx", `${clampValue(clientX - rect.left, 0, rect.width)}px`);
+      card.style.setProperty("--my", `${clampValue(clientY - rect.top, 0, rect.height)}px`);
+    }
+    function resetWeatherCard() {
+      const card = byId("weatherCard");
+      card.style.setProperty("--rx", "0deg");
+      card.style.setProperty("--ry", "0deg");
+      card.style.setProperty("--mx", "50%");
+      card.style.setProperty("--my", "35%");
+    }
+    function openWeatherDetail() {
+      if (suppressWeatherClick) return;
+      const source = byId("weatherCard");
+      const start = source.getBoundingClientRect();
+      byId("detailConfidence").textContent = byId("confidenceLabel").textContent;
+      byId("detailHeadline").textContent = byId("weatherHeadline").textContent;
+      byId("detailSub").textContent = byId("weatherSub").textContent;
+      byId("detailBalance").textContent = byId("projectedBalance").textContent;
+      byId("detailLowDate").textContent = byId("lowBalanceDate").textContent;
+      byId("detailRisk").textContent = byId("riskSource").textContent;
+      openOverlay("weatherDetailView");
+      const target = byId("weatherDetailHero");
+      if (!motionEnabled()) {
+        target.style.opacity = "1";
+        return;
+      }
+      const end = target.getBoundingClientRect();
+      const clone = source.cloneNode(true);
+      clone.removeAttribute("id");
+      clone.removeAttribute("role");
+      clone.removeAttribute("tabindex");
+      clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+      clone.style.cssText = `position:fixed;z-index:65;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;margin:0;transform:none;pointer-events:none;`;
+      document.body.appendChild(clone);
+      source.style.visibility = "hidden";
+      target.style.opacity = "0";
+      clone.animate([
+        { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: "28px" },
+        { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, borderRadius: "25px" }
+      ], { duration: 500, easing: "cubic-bezier(.16,1,.3,1)" }).finished.finally(() => {
+        clone.remove();
+        source.style.visibility = "";
+        target.style.opacity = "1";
+      });
+    }
+    function ensureTasks() {
+      const existing = state.tasks[TODAY] || [];
+      const done = existing.filter((task) => task.status === "done");
+      const forecast = calculateForecast();
+      const candidates = [];
+      if (["rain", "storm"].includes(forecast.weather)) {
+        candidates.push({ id: `task-${TODAY}-limit`, type: "limit", title: "设置今天的消费上限", source: "钱包天气", action: "pause" });
+      }
+      const nextEvent = state.events.find((event) => daysBetween(TODAY, event.date) <= 7 && daysBetween(TODAY, event.date) >= 0);
+      if (nextEvent) {
+        candidates.push({ id: `task-${TODAY}-event`, type: "event", title: `检查「${nextEvent.name}」的预算`, source: "计划事件", action: "home" });
+      }
+      const unread = cards.find((card) => !state.learning.includes(card.id));
+      if (unread) {
+        candidates.push({ id: `task-${TODAY}-card-${unread.id}`, type: "safety", title: "完成一张金融安全卡", source: unread.category, action: "card", target: unread.id });
+      }
+      if (!state.expenses.some((expense) => expense.date === TODAY)) {
+        candidates.push({ id: `task-${TODAY}-record`, type: "record", title: "记录今天的第一笔支出", source: "记账", action: "record" });
+      }
+      if (!candidates.length) candidates.push({ id: `task-${TODAY}-review`, type: "review", title: "查看本周余额", source: "复盘", action: "home" });
+      const merged = [...done];
+      candidates.forEach((task) => {
+        if (
+          merged.length < 3 &&
+          !merged.some((item) => item.id === task.id || item.type === task.type)
+        ) {
+          merged.push({ ...task, status: "todo" });
+        }
+      });
+      state.tasks[TODAY] = merged.slice(0, 3);
+      saveState();
+      return state.tasks[TODAY];
+    }
+    function taskMarkup(task, showActions = false) {
+      return `<div class="task ${task.status === "done" ? "done" : ""}">
+        <button class="task-main" data-task="${task.id}">
+          <span class="task-check">${task.status === "done" ? "✓" : ""}</span>
+          <span><span class="task-title">${escapeHtml(task.title)}</span><span class="task-source">${escapeHtml(task.source)}</span></span>
+        </button>
+        ${showActions ? `<span class="task-actions"><button class="mini-action" data-task-done="${task.id}">${task.status === "done" ? "已完成" : "完成"}</button></span>` : ""}
+      </div>`;
+    }
+    function bindTaskActions(container) {
+      container.querySelectorAll("[data-task]").forEach((element) => {
+        element.addEventListener("click", () => {
+          const task = (state.tasks[TODAY] || []).find((item) => item.id === element.dataset.task);
+          if (task) openTask(task);
+        });
+      });
+      container.querySelectorAll("[data-task-done]").forEach((element) => {
+        element.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const task = (state.tasks[TODAY] || []).find((item) => item.id === element.dataset.taskDone);
+          if (!task) return;
+          task.status = task.status === "done" ? "todo" : "done";
+          saveState();
+          renderHome();
+          renderToday();
+        });
+      });
+    }
+    function openTask(task) {
+      if (task.action === "record") return openRecord("expense");
+      if (task.action === "card") return openCard(task.target);
+      if (task.action === "pause") return openPause();
+      if (task.action === "home") return showScreen("home");
+    }
+    function renderToday() {
+      if (!state.profile) return;
+      const tasks = ensureTasks();
+      const done = tasks.filter((task) => task.status === "done").length;
+      byId("todayDate").textContent = formatLongDay(TODAY);
+      byId("todayProgress").style.setProperty("--progress", `${tasks.length ? (done / tasks.length) * 100 : 0}%`);
+      byId("todayProgress").querySelector("span").textContent = `${done}/${tasks.length}`;
+      byId("todayTasks").innerHTML = tasks.length ? tasks.map((task) => taskMarkup(task, true)).join("") : `<div class="empty">今天没有待办，先记一笔支出，让预测更准确。</div>`;
+      bindTaskActions(byId("todayTasks"));
+      prepareStagger(byId("todayTasks"), ".task");
+    }
+    function renderSafety() {
+      renderCategoryPicker();
+      renderKnowledgeList();
+    }
+    function renderKnowledgeList() {
+      const query = (byId("safetySearch")?.value || "").trim();
+      const filtered = cards.filter((card) => {
+        const categoryOk = activeCategory === "全部" || card.category === activeCategory;
+        const haystack = `${card.title} ${card.tags.join(" ")} ${card.scene}`;
+        return categoryOk && (!query || haystack.includes(query));
+      });
+      byId("knowledgeList").innerHTML = filtered.length ? filtered.map((card) => `<button class="knowledge-item" data-card="${card.id}"><strong>${escapeHtml(card.title)}</strong><small>${escapeHtml(card.scene)}</small><span class="tag">${escapeHtml(card.category)}</span></button>`).join("") : `<div class="empty">没有找到匹配的知识卡。换个关键词，或直接点“问 AI”。</div>`;
+      prepareStagger(byId("knowledgeList"), ".knowledge-item");
+      observeKnowledgeFocus();
+    }
+    let knowledgeFocusObserver = null;
+    function observeKnowledgeFocus() {
+      knowledgeFocusObserver?.disconnect();
+      if (!motionEnabled()) {
+        byId("knowledgeList").querySelectorAll(".knowledge-item").forEach((item) => item.classList.remove("is-focused"));
+        return;
+      }
+      knowledgeFocusObserver = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => entry.target.classList.toggle("is-focused", entry.isIntersecting));
+      }, { rootMargin: "-32% 0px -42% 0px", threshold: .25 });
+      byId("knowledgeList").querySelectorAll(".knowledge-item").forEach((item) => knowledgeFocusObserver.observe(item));
+    }
+    function openRadarImage() {
+      const source = byId("radarVisual");
+      const overlay = byId("imageExpandOverlay");
+      const stage = byId("imageExpandStage");
+      const start = source.getBoundingClientRect();
+      overlay.hidden = false;
+      const end = stage.getBoundingClientRect();
+      if (!motionEnabled()) {
+        stage.style.opacity = "1";
+        byId("closeImageExpand").focus();
+        return;
+      }
+      const clone = source.cloneNode(true);
+      clone.removeAttribute("id");
+      clone.style.cssText = `position:fixed;z-index:72;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;margin:0;border-radius:20px;pointer-events:none;`;
+      document.body.appendChild(clone);
+      source.style.visibility = "hidden";
+      stage.style.opacity = "0";
+      clone.animate([
+        { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: "20px" },
+        { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, borderRadius: "22px" }
+      ], { duration: 450, easing: "cubic-bezier(.16,1,.3,1)" }).finished.finally(() => {
+        clone.remove();
+        source.style.visibility = "";
+        stage.style.opacity = "1";
+        byId("closeImageExpand").focus();
+      });
+    }
+    function openCard(id, origin = null) {
+      const card = cards.find((item) => item.id === id);
+      if (!card) return;
+      if (!state.learning.includes(id)) {
+        state.learning.push(id);
+        saveState();
+      }
+      byId("cardContent").innerHTML = `<div class="detail-card">
+        <p class="eyebrow">${escapeHtml(card.category)} · ${escapeHtml(card.level)}</p>
+        <h2>${escapeHtml(card.title)}</h2>
+        <p class="lead">场景：${escapeHtml(card.scene)}</p>
+        <div class="detail-block"><h3>你需要注意的信号</h3><ul>${card.signals.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+        <div class="detail-block"><h3>现在可以做的3件事</h3><ul>${card.actions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+        <div class="detail-block"><h3>不要做什么</h3><ul>${card.avoid.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+        <div class="source">来源：${escapeHtml(card.source)}<br>注意：这是内容示例，正式提交前需由团队和指导教师复核。</div>
+      </div>`;
+      cardDetailOrigin = origin || document.querySelector(`[data-card="${CSS.escape(id)}"]`) || byId("homeSafety");
+      cardDetailReturnFocus = document.activeElement;
+      const panel = byId("cardDetailPanel");
+      panel.style.opacity = "1";
+      panel.style.transform = "";
+      openOverlay("cardView");
+      if (motionEnabled() && cardDetailOrigin) {
+        const start = cardDetailOrigin.getBoundingClientRect();
+        const end = panel.getBoundingClientRect();
+        const clone = cardDetailOrigin.cloneNode(true);
+        clone.removeAttribute("id");
+        clone.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+        clone.style.cssText = `position:fixed;z-index:67;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;margin:0;pointer-events:none;border-radius:16px;overflow:hidden;`;
+        document.body.appendChild(clone);
+        cardDetailOrigin.style.visibility = "hidden";
+        panel.style.opacity = "0";
+        clone.animate([
+          { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: "16px", opacity: 1 },
+          { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, borderRadius: "27px", opacity: 1 }
+        ], { duration: 500, easing: "cubic-bezier(.16,1,.3,1)" }).finished.finally(() => {
+          clone.remove();
+          if (cardDetailOrigin?.isConnected) cardDetailOrigin.style.visibility = "";
+          panel.style.opacity = "1";
+          byId("cardView").querySelector(".back")?.focus();
+        });
+      } else {
+        requestAnimationFrame(() => byId("cardView").querySelector(".back")?.focus());
+      }
+    }
+    function closeCardDetail() {
+      const overlay = byId("cardView");
+      if (overlay.hidden) return;
+      const panel = byId("cardDetailPanel");
+      const restoreFocus = () => {
+        overlay.hidden = true;
+        panel.style.transform = "";
+        panel.style.opacity = "1";
+        if (cardDetailOrigin?.isConnected) cardDetailOrigin.style.visibility = "";
+        if (cardDetailReturnFocus?.isConnected) cardDetailReturnFocus.focus();
+        else if (cardDetailOrigin?.isConnected) cardDetailOrigin.focus?.();
+        cardDetailOrigin = null;
+        cardDetailReturnFocus = null;
+      };
+      if (!motionEnabled() || !cardDetailOrigin?.isConnected) {
+        restoreFocus();
+        return;
+      }
+      const start = panel.getBoundingClientRect();
+      const end = cardDetailOrigin.getBoundingClientRect();
+      const scaleX = end.width / start.width;
+      const scaleY = end.height / start.height;
+      const translateX = end.left - start.left;
+      const translateY = end.top - start.top;
+      panel.animate([
+        { transform: "translate(0, 0) scale(1, 1)", opacity: 1, borderRadius: "27px" },
+        { transform: `translate(${translateX}px, ${translateY}px) scale(${scaleX}, ${scaleY})`, opacity: .08, borderRadius: "16px" }
+      ], { duration: 360, easing: "cubic-bezier(.4,0,.2,1)" }).finished.finally(restoreFocus);
+    }
+    function openAssistant() { openOverlay("assistantView"); byId("aiQuery").focus(); }
+    function findCard(query) {
+      const normalized = query.trim().toLowerCase();
+      return cards
+        .map((card) => {
+          const text = `${card.title} ${card.tags.join(" ")} ${card.scene}`.toLowerCase();
+          const score = card.tags.reduce((total, tag) => total + (normalized.includes(tag.toLowerCase()) ? 3 : 0), 0) + (text.includes(normalized) ? 1 : 0);
+          return { card, score };
+        })
+        .filter((item) => item.score > 0)
+        .sort((a, b) => b.score - a.score)[0]?.card || null;
+    }
+    function askAI() {
+      const query = byId("aiQuery").value.trim();
+      const target = byId("aiAnswer");
+      if (!query) {
+        target.innerHTML = `<div class="ai-answer"><p class="refusal">请先描述你遇到的情况。若已经转账，请立即停止继续付款。</p></div>`;
+        return;
+      }
+      const investment = /基金|股票|收益|推荐|买什么/.test(query);
+      const card = investment ? null : findCard(query);
+      if (!card) {
+        target.innerHTML = `<div class="ai-answer"><h3 class="refusal">当前知识库无法确认</h3><p>这个问题不在已审核的知识卡内。请停止付款，保存证据，并联系学校或官方渠道核实。智汇金不提供投资建议。</p><button class="secondary" id="aiEmergency">打开求助清单</button></div>`;
+        byId("aiEmergency").onclick = () => openOverlay("emergencyView");
+        return;
+      }
+      target.innerHTML = `<div class="ai-answer"><p class="eyebrow">命中的知识卡</p><h3>${escapeHtml(card.title)}</h3><p><strong>结论：</strong>${escapeHtml(card.signals[0])}，先停下来核实。</p><p><strong>现在做：</strong>${card.actions.map(escapeHtml).join("；")}。</p><p><strong>不要做：</strong>${card.avoid.map(escapeHtml).join("；")}。</p><div class="source">来源：${escapeHtml(card.source)}</div><button class="secondary" id="aiOpenCard">查看完整知识卡</button></div>`;
+      byId("aiOpenCard").onclick = () => openCard(card.id);
+    }
+    function renderScenario() {
+      const scenario = scenarios[currentScenario];
+      selectedScenarioOption = null;
+      byId("scenarioContent").innerHTML = `<div class="detail-card"><p class="eyebrow">第 ${currentScenario + 1} / ${scenarios.length} 题</p><h2>${escapeHtml(scenario.question)}</h2><div class="option-list">${scenario.options.map((option, index) => `<button class="option" data-option="${index}">${escapeHtml(option)}</button>`).join("")}</div><div id="scenarioFeedback"></div></div>`;
+      document.querySelectorAll("[data-option]").forEach((button) => button.addEventListener("click", () => submitScenario(Number(button.dataset.option))));
+    }
+    function submitScenario(index) {
+      if (selectedScenarioOption !== null) return;
+      selectedScenarioOption = index;
+      const scenario = scenarios[currentScenario];
+      const correct = index === scenario.correct;
+      document.querySelectorAll("[data-option]").forEach((button) => {
+        const option = Number(button.dataset.option);
+        button.classList.toggle("correct", option === scenario.correct);
+        button.classList.toggle("wrong", option === index && !correct);
+      });
+      byId("scenarioFeedback").innerHTML = `<div class="feedback"><strong>${correct ? "判断正确" : "再想一步"}</strong><br>${escapeHtml(scenario.explanation)}<br><button class="mini-action" id="nextScenario">${currentScenario === scenarios.length - 1 ? "回到安全雷达" : "下一题"}</button></div>`;
+      byId("nextScenario").onclick = () => {
+        if (currentScenario === scenarios.length - 1) {
+          closeOverlay("scenarioView");
+          showScreen("safety");
+        } else {
+          currentScenario += 1;
+          renderScenario();
+        }
+      };
+    }
+    function renderEmergency() {
+      byId("emergencyList").innerHTML = emergencySteps.map((step, index) => `<label class="check-item ${state.emergency[index] ? "checked" : ""}"><input type="checkbox" data-emergency="${index}" ${state.emergency[index] ? "checked" : ""}><span>${escapeHtml(step)}</span></label>`).join("");
+      const done = Object.values(state.emergency).filter(Boolean).length;
+      byId("emergencyStatus").textContent = done === emergencySteps.length ? "关键步骤已完成。仍建议继续联系官方渠道并保留证据。" : `当前进度：${done} / ${emergencySteps.length}。请先不要把这件事当成已经解决。`;
+      document.querySelectorAll("[data-emergency]").forEach((input) => input.addEventListener("change", () => {
+        state.emergency[input.dataset.emergency] = input.checked;
+        saveState();
+        renderEmergency();
+      }));
+    }
+    function animateRecordSheetIn(origin) {
+      const sheet = byId("recordSheet");
+      sheet.style.transform = "";
+      sheetDragOffset = 0;
+      if (!motionEnabled()) return;
+      const end = sheet.getBoundingClientRect();
+      if (origin) {
+        const start = origin.getBoundingClientRect();
+        const deltaX = start.left - end.left;
+        const deltaY = start.top - end.top;
+        const scaleX = start.width / end.width;
+        const scaleY = start.height / end.height;
+        sheet.querySelectorAll(":scope > *").forEach((child) => {
+          child.getAnimations().forEach((animation) => animation.cancel());
+          child.animate([{ opacity: 0 }, { opacity: 0, offset: .72 }, { opacity: 1 }], {
+            duration: 500, easing: "ease-out", fill: "both"
+          });
+        });
+        sheet.animate([
+          {
+            transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
+            borderRadius: "18px",
+            opacity: .68
+          },
+          {
+            transform: "translate(0, 0) scale(1, 1)",
+            borderRadius: "28px",
+            opacity: 1
+          }
+        ], { duration: 520, easing: "cubic-bezier(.16,1,.3,1)" });
+      } else {
+        sheet.animate([
+          { transform: "translateY(34px)", opacity: .72 },
+          { transform: "translateY(0)", opacity: 1 }
+        ], { duration: 320, easing: "cubic-bezier(.16,1,.3,1)" });
+      }
+    }
+    function openRecord(kind = "expense", origin = null) {
+      recordKind = kind;
+      sheetAnimation?.cancel();
+      sheetAnimation = null;
+      byId("recordSheet").style.transform = "";
+      byId("recordModal").hidden = false;
+      byId("recordDate").value = TODAY;
+      byId("recordDateLabel").textContent = formatDay(TODAY);
+      byId("recordAmount").value = "";
+      byId("recordName").value = "";
+      setDatePicker(false);
+      byId("appShell").classList.add("is-sheet-open");
+      setRecordKind(kind);
+      requestAnimationFrame(() => animateRecordSheetIn(origin));
+    }
+    function closeRecordSheet() {
+      const modal = byId("recordModal");
+      const sheet = byId("recordSheet");
+      if (modal.hidden) return;
+      byId("appShell").classList.remove("is-sheet-open");
+      setDatePicker(false);
+      if (!motionEnabled()) {
+        modal.hidden = true;
+        sheet.style.transform = "";
+        return;
+      }
+      sheetAnimation?.cancel();
+      const animation = sheet.animate(springFrames(sheetDragOffset, sheet.offsetHeight + 28, 360, 190, 27), {
+        duration: 560,
+        easing: "linear"
+      });
+      sheetAnimation = animation;
+      animation.finished.then(
+        () => {
+          if (sheetAnimation !== animation) return;
+          modal.hidden = true;
+          sheet.style.transform = "";
+          sheetDragOffset = 0;
+        },
+        () => {}
+      );
+    }
+    function setRecordKind(kind) {
+      recordKind = kind;
+      document.querySelectorAll("[data-record-kind]").forEach((tab) => tab.classList.toggle("active", tab.dataset.recordKind === kind));
+      byId("eventNameField").hidden = kind !== "event";
+    }
+    function saveRecord() {
+      try {
+        const amountCents = parseMoney(byId("recordAmount").value);
+        const date = byId("recordDate").value || TODAY;
+        if (recordKind === "expense") {
+          state.expenses.unshift({ id: `expense-${Date.now()}`, amountCents, category: byId("recordCategory").value, date });
+          state.period.currentBalanceCents = Math.max(0, state.period.currentBalanceCents - amountCents);
+          showToast("支出已记录，余额预测已更新");
+        } else {
+          const name = byId("recordName").value.trim() || "计划事件";
+          state.events.push({ id: `event-${Date.now()}`, name, amountCents, date });
+          showToast("计划事件已加入预测");
+        }
+        saveState();
+        closeRecordSheet();
+        renderHome();
+        renderToday();
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+    function openPause() {
+      byId("pauseResult").innerHTML = "";
+      byId("pauseName").value = "";
+      byId("pauseAmount").value = "";
+      openOverlay("pauseView");
+    }
+    function calculatePause() {
+      try {
+        const amount = parseMoney(byId("pauseAmount").value);
+        const forecast = calculateForecast();
+        const ratio = state.period.currentBalanceCents > 0 ? amount / state.period.currentBalanceCents : 1;
+        const after = forecast.projected - amount;
+        const high = ratio >= .5 || after < 0;
+        byId("pauseResult").innerHTML = `<div class="pause-result ${high ? "high" : ""}"><strong>${high ? "高影响，建议先暂停" : "有影响，但可以先调整"}</strong><br>这笔消费占当前余额约 ${Math.round(ratio * 100)}%，会让预计到账前余额变成 ${formatMoney(after)}。<br><button class="primary" id="startCooling" style="margin-top:12px">开启24小时冷静期</button></div>`;
+        byId("startCooling").onclick = () => {
+          state.pauses.unshift({ id: `pause-${Date.now()}`, name: byId("pauseName").value || "一笔想买的东西", amountCents: amount, endsAt: new Date(Date.now() + 86400000).toISOString() });
+          saveState();
+          closeOverlay("pauseView");
+          showToast("已开始冷静期，关闭页面后记录仍保留");
+        };
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+    function renderProfile() {
+      const forecast = calculateForecast();
+      byId("profileSummary").innerHTML = `<div class="summary-tile"><small>每月生活费</small><strong>${state.profile ? formatMoney(state.profile.monthlyBudgetCents) : "—"}</strong></div><div class="summary-tile"><small>当前余额</small><strong>${formatMoney(state.period.currentBalanceCents)}</strong></div><div class="summary-tile"><small>已记录支出</small><strong>${state.expenses.length} 笔</strong></div><div class="summary-tile"><small>冷静期</small><strong>${state.pauses.length} 个</strong></div>`;
+    }
+    function completeOnboarding() {
+      try {
+        const budget = parseMoney(byId("monthlyBudget").value);
+        const fixed = parseMoney(byId("fixedAmount").value || "0");
+        const nextIncomeDate = byId("nextIncome").value;
+        if (!nextIncomeDate || daysBetween(TODAY, nextIncomeDate) <= 1) throw new Error("下次到账日必须晚于今天");
+        state.profile = {
+          monthlyBudgetCents: budget,
+          nextIncomeDate,
+          spendingProfile: byId("spendingProfile").value,
+          fixedExpensesCents: [{ name: "固定支出", amountCents: fixed }]
+        };
+        state.period = { startDate: TODAY, currentBalanceCents: budget };
+        saveState();
+        showScreen("home");
+        showToast("预算天气已生成");
+      } catch (error) {
+        showToast(error.message);
+      }
+    }
+    function loadDemo(kind) {
+      const profiles = {
+        sunny: { profile: "conservative", balance: 150000, fixed: 20000, events: [] },
+        cloudy: { profile: "balanced", balance: 150000, fixed: 20000, events: [["考试周聚餐", 20000, "2026-10-29"]] },
+        rain: { profile: "balanced", balance: 150000, fixed: 20000, events: [["社团旅行", 30000, "2026-10-28"]] },
+        storm: { profile: "balanced", balance: 100000, fixed: 20000, events: [["社团旅行", 30000, "2026-10-28"]] }
+      };
+      const demo = profiles[kind];
+      state = makeDefaultState();
+      state.profile = {
+        monthlyBudgetCents: 150000,
+        nextIncomeDate: "2026-11-20",
+        spendingProfile: demo.profile,
+        fixedExpensesCents: [{ name: "固定支出", amountCents: demo.fixed }]
+      };
+      state.period.currentBalanceCents = demo.balance;
+      state.events = demo.events.map(([name, amountCents, date], index) => ({ id: `demo-event-${index}`, name, amountCents, date }));
+      saveState();
+      showScreen("home");
+      showToast(`已切换到${kind === "sunny" ? "晴天" : kind === "cloudy" ? "多云" : kind === "rain" ? "阵雨" : "暴雨"}演示`);
+    }
+    function exportData() {
+      const backup = { schemaVersion: 1, exportedAt: new Date().toISOString(), data: state };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `智汇金_backup_${TODAY}.json`;
+      link.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      showToast("备份已导出");
+    }
+    function importData(file) {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const parsed = JSON.parse(reader.result);
+          if (!parsed || parsed.schemaVersion !== 1 || !parsed.data || !parsed.data.profile) throw new Error("不是有效的智汇金备份文件");
+          state = parsed.data;
+          saveState();
+          renderHome();
+          showScreen("home");
+          showToast("备份已恢复");
+        } catch (error) {
+          showToast(error.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    document.addEventListener("click", (event) => {
+      if (menuOpen && !event.target.closest("#actionMenu") && !event.target.closest("#moreButton")) {
+        closeActionMenu(false);
+      }
+      const menuItem = event.target.closest("#actionMenu button");
+      if (menuItem) {
+        const menuAction = menuItem.dataset.menuAction;
+        if (menuItem.dataset.action === "record") {
+          closeActionMenu(false);
+          openRecord("expense", menuItem);
+        } else if (menuItem.dataset.action === "pause") {
+          closeActionMenu(false);
+          openPause();
+        } else if (menuAction === "drawer") {
+          closeActionMenu(false);
+          openDecisionDrawer(menuItem);
+        } else if (menuAction === "tip") {
+          closeActionMenu(false);
+          showContextTip(menuItem);
+        }
+        return;
+      }
+      const tab = event.target.closest("[data-screen]");
+      if (tab) showScreen(tab.dataset.screen);
+      const close = event.target.closest("[data-close]");
+      if (close) closeOverlay(close.dataset.close);
+      const action = event.target.closest("[data-action]");
+      if (action?.dataset.action === "record") openRecord("expense", action);
+      if (action?.dataset.action === "pause") openPause();
+      const category = event.target.closest("[data-category]");
+      if (category) {
+        activeCategory = category.dataset.category;
+        renderCategoryPicker();
+        setCategoryPicker(false);
+        renderKnowledgeList();
+        window.setTimeout(() => byId("categoryTrigger").focus(), 40);
+      }
+      const cardButton = event.target.closest("[data-card]");
+      if (cardButton) openCard(cardButton.dataset.card, cardButton);
+      const demo = event.target.closest("[data-demo]");
+      if (demo) loadDemo(demo.dataset.demo);
+      const recordTab = event.target.closest("[data-record-kind]");
+      if (recordTab) setRecordKind(recordTab.dataset.recordKind);
+    });
+    byId("moreButton").addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (menuOpen) closeActionMenu(true);
+      else openActionMenu(event.currentTarget);
+    });
+    byId("headerProfile").onclick = () => showScreen("profile");
+    byId("startButton").onclick = completeOnboarding;
+    byId("demoButton").onclick = () => loadDemo("sunny");
+    byId("refreshHome").onclick = () => { renderHome(); showToast("余额预测已刷新"); };
+    byId("openAI").onclick = openAssistant;
+    byId("askButton").onclick = askAI;
+    byId("aiQuery").addEventListener("keydown", (event) => { if (event.key === "Enter") askAI(); });
+    document.querySelectorAll("[data-query]").forEach((button) => button.addEventListener("click", () => { byId("aiQuery").value = button.dataset.query; askAI(); }));
+    byId("openScenario").onclick = () => { currentScenario = 0; renderScenario(); openOverlay("scenarioView"); };
+    byId("openEmergency").onclick = () => { renderEmergency(); openOverlay("emergencyView"); };
+    byId("safetySearch").addEventListener("input", renderKnowledgeList);
+    byId("categoryTrigger").addEventListener("click", (event) => {
+      event.stopPropagation();
+      setCategoryPicker(!byId("categoryPicker").classList.contains("open"));
+    });
+    byId("settlementBar").onclick = () => toggleSettlement();
+    byId("closeContextTip").onclick = closeContextTip;
+    byId("dateTrigger").addEventListener("click", (event) => {
+      event.stopPropagation();
+      setDatePicker(!byId("dateField").classList.contains("open"));
+    });
+    byId("calendarPopover").addEventListener("click", (event) => event.stopPropagation());
+    byId("calendarPrev").onclick = () => {
+      calendarCursor = new Date(Date.UTC(calendarCursor.getUTCFullYear(), calendarCursor.getUTCMonth() - 1, 1));
+      renderCalendar();
+    };
+    byId("calendarNext").onclick = () => {
+      calendarCursor = new Date(Date.UTC(calendarCursor.getUTCFullYear(), calendarCursor.getUTCMonth() + 1, 1));
+      renderCalendar();
+    };
+    byId("calendarGrid").addEventListener("click", (event) => {
+      const day = event.target.closest("[data-calendar-date]");
+      if (day) updateDateValue(day.dataset.calendarDate);
+    });
+    byId("segmentTabs").addEventListener("click", (event) => {
+      const button = event.target.closest("[data-segment]");
+      if (button) setSegment(Number(button.dataset.segment), true);
+    });
+    [byId("segmentTabs"), byId("segmentViewport")].forEach((surface) => {
+      surface.addEventListener("pointerdown", (event) => beginSegmentGesture(event, surface));
+      surface.addEventListener("pointermove", moveSegmentGesture);
+      surface.addEventListener("pointerup", finishSegmentGesture);
+      surface.addEventListener("pointercancel", finishSegmentGesture);
+    });
+    byId("drawerScrim").onclick = () => closeDecisionDrawer(true);
+    byId("closeDecisionDrawer").onclick = () => closeDecisionDrawer(true);
+    document.querySelectorAll("[data-drawer-go]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const destination = button.dataset.drawerGo;
+        closeDecisionDrawer(false);
+        window.setTimeout(() => {
+          if (destination === "record") openRecord("expense", byId("moreButton"));
+          if (destination === "pause") openPause();
+          if (destination === "safety") showScreen("safety");
+          if (destination === "transfer") {
+            openCard("loan", byId("moreButton"));
+          }
+        }, motionEnabled() ? 280 : 0);
+      });
+    });
+    byId("confirmCancel").onclick = () => closeConfirmation(true);
+    byId("confirmAction").onclick = completeConfirmation;
+    byId("confirmDialog").addEventListener("click", (event) => {
+      if (event.target === byId("confirmDialog")) closeConfirmation(true);
+    });
+    byId("saveRecord").onclick = saveRecord;
+    byId("calculatePause").onclick = calculatePause;
+    byId("exportButton").onclick = exportData;
+    byId("importButton").onclick = () => byId("importFile").click();
+    byId("importFile").addEventListener("change", (event) => { if (event.target.files[0]) importData(event.target.files[0]); });
+    byId("clearButton").onclick = () => {
+      requestConfirmation({
+        title: "清空本地数据？",
+        body: "预算、支出、学习进度和冷静期都会从这台设备删除，清空后无法恢复。",
+        confirmLabel: "确认清空",
+        successTitle: "本地数据已清空",
+        successCopy: "现在可以重新建立第一份预算。",
+        onConfirm: () => {
+          resetState();
+          showScreen("onboarding");
+          showToast("本地数据已清空");
+        }
+      });
+    };
+    byId("recordModal").addEventListener("click", (event) => {
+      if (event.target === byId("recordModal")) closeRecordSheet();
+    });
+    document.addEventListener("click", (event) => {
+      if (!event.target.closest("#categoryPicker") && byId("categoryPicker").classList.contains("open")) {
+        setCategoryPicker(false);
+      }
+      if (!event.target.closest("#dateField") && byId("dateField").classList.contains("open")) {
+        setDatePicker(false);
+      }
+    });
+
+    const weatherCardElement = byId("weatherCard");
+    weatherCardElement.addEventListener("pointerdown", (event) => {
+      if (!motionEnabled()) return;
+      weatherSettleAnimation?.cancel();
+      weatherSettleAnimation = null;
+      weatherTracking = true;
+      weatherTravel = 0;
+      suppressWeatherClick = false;
+      weatherCardElement.classList.add("is-tracking");
+      weatherCardElement.setPointerCapture(event.pointerId);
+      setWeatherLight(event.clientX, event.clientY);
+    });
+    weatherCardElement.addEventListener("pointermove", (event) => {
+      setWeatherLight(event.clientX, event.clientY);
+      if (!weatherTracking) return;
+      const rect = weatherCardElement.getBoundingClientRect();
+      weatherTravel += Math.abs(event.movementX || 0) + Math.abs(event.movementY || 0);
+      const ry = clampValue((event.clientX - rect.left - rect.width / 2) / 10, -8, 8);
+      const rx = clampValue(-(event.clientY - rect.top - rect.height / 2) / 11, -7, 7);
+      weatherCardElement.style.setProperty("--rx", `${rx}deg`);
+      weatherCardElement.style.setProperty("--ry", `${ry}deg`);
+    });
+    function releaseWeatherCard() {
+      if (!weatherTracking) return;
+      weatherTracking = false;
+      suppressWeatherClick = weatherTravel > 10;
+      if (suppressWeatherClick) setTimeout(() => { suppressWeatherClick = false; }, 240);
+      weatherCardElement.classList.remove("is-tracking");
+      if (!motionEnabled()) {
+        resetWeatherCard();
+        return;
+      }
+      const rx = weatherCardElement.style.getPropertyValue("--rx") || "0deg";
+      const ry = weatherCardElement.style.getPropertyValue("--ry") || "0deg";
+      const animation = weatherCardElement.animate([
+        { transform: `rotateX(${rx}) rotateY(${ry})` },
+        { transform: "rotateX(1.8deg) rotateY(-1.5deg)", offset: .4 },
+        { transform: "rotateX(-.7deg) rotateY(.6deg)", offset: .72 },
+        { transform: "rotateX(0) rotateY(0)" }
+      ], { duration: 650, easing: "linear" });
+      weatherSettleAnimation = animation;
+      animation.finished.then(
+        () => { if (weatherSettleAnimation === animation) resetWeatherCard(); },
+        () => {}
+      );
+    }
+    weatherCardElement.addEventListener("pointerup", releaseWeatherCard);
+    weatherCardElement.addEventListener("pointercancel", releaseWeatherCard);
+    weatherCardElement.addEventListener("click", openWeatherDetail);
+    weatherCardElement.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openWeatherDetail();
+      }
+    });
+
+    let chartSnapTimer = 0;
+    byId("chartViewport").addEventListener("scroll", () => {
+      updateChartFromScroll();
+      clearTimeout(chartSnapTimer);
+      chartSnapTimer = setTimeout(() => {
+        const viewport = byId("chartViewport");
+        const target = centerChartPoint(activeChartPoint);
+        if (Math.abs(viewport.scrollLeft - target) > 2) {
+          viewport.scrollTo({ left: target, behavior: motionEnabled() ? "smooth" : "auto" });
+        }
+      }, 130);
+    }, { passive: true });
+    byId("chartPointLayer").addEventListener("click", (event) => {
+      const point = event.target.closest("[data-chart-index]");
+      if (point) setActiveChartPoint(Number(point.dataset.chartIndex), true);
+    });
+    byId("chartViewport").addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key) || !chartSnapPoints.length) return;
+      event.preventDefault();
+      setActiveChartPoint(activeChartPoint + (event.key === "ArrowRight" ? 1 : -1), true);
+    });
+
+    byId("radarVisual").addEventListener("click", openRadarImage);
+    byId("closeImageExpand").addEventListener("click", () => {
+      byId("imageExpandOverlay").hidden = true;
+      byId("radarVisual").focus();
+    });
+    byId("imageExpandOverlay").addEventListener("click", (event) => {
+      if (event.target === byId("imageExpandOverlay")) byId("imageExpandOverlay").hidden = true;
+    });
+
+    const sheetDragHandle = byId("sheetDragHandle");
+    sheetDragHandle.addEventListener("pointerdown", (event) => {
+      if (event.target.closest("button")) return;
+      sheetAnimation?.cancel();
+      sheetDragActive = true;
+      sheetDragStartY = event.clientY;
+      sheetDragLastY = event.clientY;
+      sheetDragLastTime = performance.now();
+      sheetDragVelocity = 0;
+      sheetDragOffset = 0;
+      sheetDragHandle.setPointerCapture(event.pointerId);
+      byId("recordSheet").classList.add("is-dragging");
+    });
+    sheetDragHandle.addEventListener("pointermove", (event) => {
+      if (!sheetDragActive) return;
+      const now = performance.now();
+      const elapsed = Math.max(1, now - sheetDragLastTime);
+      sheetDragVelocity = (event.clientY - sheetDragLastY) / elapsed * 1000;
+      sheetDragLastY = event.clientY;
+      sheetDragLastTime = now;
+      const raw = event.clientY - sheetDragStartY;
+      const resisted = raw < 0 ? -70 * (1 - Math.exp(raw / 70)) : raw;
+      sheetDragOffset = Math.max(-70, resisted);
+      byId("recordSheet").style.transform = `translateY(${sheetDragOffset}px)`;
+    });
+    function finishSheetDrag(event) {
+      if (!sheetDragActive) return;
+      sheetDragActive = false;
+      byId("recordSheet").classList.remove("is-dragging");
+      if (event && sheetDragHandle.hasPointerCapture(event.pointerId)) sheetDragHandle.releasePointerCapture(event.pointerId);
+      const sheet = byId("recordSheet");
+      if (sheetDragOffset > sheet.offsetHeight * .22 || sheetDragVelocity > 620) {
+        closeRecordSheet();
+        return;
+      }
+      if (!motionEnabled()) {
+        sheet.style.transform = "";
+        sheetDragOffset = 0;
+        return;
+      }
+      const animation = sheet.animate(springFrames(sheetDragOffset, 0, -sheetDragVelocity, 230, 27, 38), {
+        duration: 520,
+        easing: "linear"
+      });
+      animation.finished.finally(() => {
+        sheet.style.transform = "";
+        sheetDragOffset = 0;
+      });
+    }
+    sheetDragHandle.addEventListener("pointerup", finishSheetDrag);
+    sheetDragHandle.addEventListener("pointercancel", finishSheetDrag);
+
+    function pressButton(button) {
+      if (!button || pressedButtons.has(button)) return;
+      buttonAnimations.get(button)?.cancel();
+      buttonAnimations.delete(button);
+      pressedButtons.add(button);
+      button.classList.add("physical-press", "pressing");
+      if (motionEnabled()) button.style.transform = "scale(.96)";
+    }
+    function releaseButton(button) {
+      if (!button || !pressedButtons.has(button)) return;
+      pressedButtons.delete(button);
+      button.classList.remove("pressing");
+      if (!motionEnabled()) {
+        button.style.transform = "";
+        return;
+      }
+      const animation = button.animate([
+        { transform: "scale(.96)" },
+        { transform: "scale(1.032)", offset: .55 },
+        { transform: "scale(.992)", offset: .8 },
+        { transform: "scale(1)" }
+      ], { duration: 360, easing: "linear" });
+      buttonAnimations.set(button, animation);
+      animation.finished.then(
+        () => {
+          if (buttonAnimations.get(button) === animation) button.style.transform = "";
+        },
+        () => {}
+      );
+    }
+    document.addEventListener("pointerdown", (event) => {
+      const button = event.target.closest("button");
+      if (!button || button.id === "sheetDragHandle" || button.classList.contains("chart-point") || button.disabled) return;
+      pressButton(button);
+    });
+    document.addEventListener("pointerup", () => {
+      document.querySelectorAll("button").forEach((button) => releaseButton(button));
+    });
+    document.addEventListener("pointercancel", () => {
+      document.querySelectorAll("button").forEach((button) => releaseButton(button));
+    });
+    document.addEventListener("keydown", (event) => {
+      if ((event.key === "Enter" || event.key === " ") && event.target instanceof Element && event.target.matches("button")) pressButton(event.target);
+    });
+    document.addEventListener("keyup", (event) => {
+      if (event.target instanceof Element && event.target.matches("button")) releaseButton(event.target);
+    });
+
+    function trapFocus(event, container) {
+      if (event.key !== "Tab") return;
+      const focusable = [...container.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), a[href], [tabindex]:not([tabindex='-1'])")]
+        .filter((element) => element.getClientRects().length);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+    document.addEventListener("keydown", (event) => {
+      if (!byId("confirmDialog").hidden) {
+        trapFocus(event, byId("confirmDialog"));
+        if (event.key === "Escape") closeConfirmation(true);
+        return;
+      }
+      if (drawerOpen) {
+        trapFocus(event, byId("decisionDrawer"));
+        if (event.key === "Escape") closeDecisionDrawer(true);
+        return;
+      }
+      if (event.key === "Escape") {
+        if (menuOpen) closeActionMenu(true);
+        else if (byId("categoryPicker").classList.contains("open")) setCategoryPicker(false);
+        else if (byId("dateField").classList.contains("open")) setDatePicker(false);
+        else if (!byId("recordModal").hidden) closeRecordSheet();
+        else if (!byId("imageExpandOverlay").hidden) {
+          byId("imageExpandOverlay").hidden = true;
+          byId("radarVisual").focus();
+        } else {
+          const openOverlayElement = [...document.querySelectorAll(".overlay")].find((overlay) => !overlay.hidden);
+          if (openOverlayElement) closeOverlay(openOverlayElement.id);
+        }
+      }
+    });
+    byId("cardView").addEventListener("click", (event) => {
+      if (event.target === byId("cardView")) closeCardDetail();
+    });
+
+    window.addEventListener("scroll", scheduleStickyMotion, { passive: true });
+    const homeHead = byId("homeHead");
+    homeHead.addEventListener("touchstart", (event) => {
+      if (window.scrollY > 2 || event.target.closest("button")) return;
+      pullStartY = event.touches[0]?.clientY ?? null;
+      pullLastTime = performance.now();
+      pullVelocity = 0;
+    }, { passive: true });
+    homeHead.addEventListener("touchmove", (event) => {
+      if (pullStartY === null || window.scrollY > 2) return;
+      const currentY = event.touches[0]?.clientY ?? pullStartY;
+      const raw = currentY - pullStartY;
+      if (raw <= 0) {
+        pullDistance = 0;
+        scheduleStickyMotion();
+        return;
+      }
+      event.preventDefault();
+      const now = performance.now();
+      pullVelocity = (currentY - (pullStartY + pullDistance)) / Math.max(1, now - pullLastTime);
+      pullLastTime = now;
+      pullDistance = Math.min(92, raw * .58);
+      scheduleStickyMotion();
+    }, { passive: false });
+    function finishPull() {
+      if (pullStartY === null) return;
+      const shouldSettleOpen = pullDistance > 42 || pullVelocity > .42;
+      pullStartY = null;
+      if (shouldSettleOpen) {
+        window.scrollTo({ top: 0, behavior: motionEnabled() ? "smooth" : "auto" });
+      }
+      resetPullMotion();
+    }
+    homeHead.addEventListener("touchend", finishPull);
+    homeHead.addEventListener("touchcancel", finishPull);
+
+    window.addEventListener("resize", () => {
+      const activeTab = document.querySelector(".tab.active");
+      if (activeTab) moveTabInk(activeTab.dataset.screen, false);
+      setSegment(segmentIndex, false);
+      scheduleStickyMotion();
+    });
+    motionPreference.addEventListener?.("change", () => {
+      resetWeatherCard();
+      observeKnowledgeFocus();
+      setActiveChartPoint(activeChartPoint, false);
+    });
+
+    if (state.profile) {
+      showScreen("home");
+    } else {
+      showScreen("onboarding");
+    }
+  </script>
+  <script src="api-config.js"></script>
+  <script src="api.js"></script>
+  <script src="vibe.js" defer></script>
+</body>
+</html>

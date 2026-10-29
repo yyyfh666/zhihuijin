@@ -1,0 +1,179 @@
+{
+  "base": "https://nlxroaosaoyi.sealoshzh.site/api/v1",
+  "startedAt": "2026-10-27T15:30:46.209Z",
+  "checks": [
+    {
+      "area": "net",
+      "name": "DNS 解析 nlxroaosaoyi.sealoshzh.site",
+      "pass": true,
+      "detail": "223.4.211.186, 118.31.58.217, 120.26.162.94, 47.98.36.227, 121.40.213.28"
+    },
+    {
+      "area": "net",
+      "name": "TCP 223.4.211.186:443",
+      "pass": true,
+      "detail": "TCP 223.4.211.186:443 已建立"
+    },
+    {
+      "area": "net",
+      "name": "TCP 118.31.58.217:443",
+      "pass": true,
+      "detail": "TCP 118.31.58.217:443 已建立"
+    },
+    {
+      "area": "net",
+      "name": "TCP 120.26.162.94:443",
+      "pass": true,
+      "detail": "TCP 120.26.162.94:443 已建立"
+    },
+    {
+      "area": "net",
+      "name": "TLS 握手",
+      "pass": true,
+      "detail": "TLS TLSv1.3 · 证书 sealoshzh.site"
+    },
+    {
+      "area": "cors",
+      "name": "放行 http://127.0.0.1:5173",
+      "pass": true,
+      "detail": "已回 ACAO"
+    },
+    {
+      "area": "cors",
+      "name": "放行 http://localhost:5173",
+      "pass": true,
+      "detail": "已回 ACAO"
+    },
+    {
+      "area": "cors",
+      "name": "放行 http://127.0.0.1:4174",
+      "pass": false,
+      "detail": "未回 Access-Control-Allow-Origin"
+    },
+    {
+      "area": "cors",
+      "name": "ACAC = true（允许携带 Cookie）",
+      "pass": true,
+      "detail": "必须同时回 Access-Control-Allow-Credentials: true"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/csrf",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/auth/csrf",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/auth/csrf-token",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/security/csrf",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "POST /api/v1/auth/login",
+      "pass": true,
+      "detail": "500 INTERNAL_ERROR → 存在·服务异常"
+    },
+    {
+      "area": "routes",
+      "name": "POST /api/v1/auth/register",
+      "pass": true,
+      "detail": "400 VALIDATION_ERROR → 存在·入参校验"
+    },
+    {
+      "area": "routes",
+      "name": "POST /api/v1/auth/refresh",
+      "pass": true,
+      "detail": "403 CSRF_FAILED → 来源/权限被拒"
+    },
+    {
+      "area": "routes",
+      "name": "POST /api/v1/auth/logout",
+      "pass": true,
+      "detail": "403 CSRF_FAILED → 来源/权限被拒"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/auth/me",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/health",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/forecast",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/content/manifest",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/knowledge/cards",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "routes",
+      "name": "GET /api/v1/training/scenarios",
+      "pass": true,
+      "detail": "401 UNAUTHENTICATED → 存在·需登录"
+    },
+    {
+      "area": "csrf",
+      "name": "服务端下发过哪些 Cookie",
+      "pass": false,
+      "detail": "全程没有任何 Set-Cookie（无法携带会话/令牌）"
+    },
+    {
+      "area": "csrf",
+      "name": "存在一个可匿名访问的 GET /csrf",
+      "pass": false,
+      "detail": "前端拿不到令牌，所有写请求都会缺 X-CSRF-Token。建议：GET /api/v1/csrf → {data:{csrfToken}} 且 Set-Cookie: zhj_csrf=…; SameSite=Lax"
+    },
+    {
+      "area": "login",
+      "name": "POST /auth/login（错误凭据）",
+      "pass": false,
+      "detail": "status=500 code=INTERNAL_ERROR msg=服务暂时不可用"
+    },
+    {
+      "area": "login",
+      "name": "登录不应 500",
+      "pass": false,
+      "detail": "合法邮箱格式却返回 INTERNAL_ERROR：通常是 (a) 缺 CSRF 令牌时中间件抛异常，(b) 查库/配置异常。请查后端日志的 requestId"
+    },
+    {
+      "area": "register",
+      "name": "POST /auth/register 给出明确的 consentVersion 要求",
+      "pass": true,
+      "detail": "status=400 code=VALIDATION_ERROR msg=密码过于简单或包含邮箱前缀"
+    }
+  ],
+  "finishedAt": "2026-10-27T15:32:59.836Z",
+  "trustedOrigins": [
+    "http://127.0.0.1:5173",
+    "http://localhost:5173"
+  ]
+}

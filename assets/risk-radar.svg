@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 820" role="img" aria-labelledby="title desc">
+  <title id="title">校园金融安全雷达</title>
+  <desc id="desc">由同心弧线、柔光网格和信号点组成的抽象金融安全雷达图。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#082f2a"/>
+      <stop offset=".52" stop-color="#0f6555"/>
+      <stop offset="1" stop-color="#a7dca1"/>
+    </linearGradient>
+    <radialGradient id="beam" cx=".72" cy=".24" r=".72">
+      <stop offset="0" stop-color="#dcff9e" stop-opacity=".95"/>
+      <stop offset=".38" stop-color="#7bd4b2" stop-opacity=".35"/>
+      <stop offset="1" stop-color="#0c4037" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="grid" x1="0" y1="1" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity=".08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity=".3"/>
+    </linearGradient>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="18"/>
+    </filter>
+  </defs>
+  <rect width="1200" height="820" rx="56" fill="url(#bg)"/>
+  <circle cx="860" cy="190" r="390" fill="url(#beam)"/>
+  <g fill="none" stroke="url(#grid)">
+    <path d="M-40 660C180 510 370 485 610 500s400 100 650-80" stroke-width="2"/>
+    <path d="M-30 735C225 575 410 552 650 564s390 72 610-112" stroke-width="1.5"/>
+    <path d="M95 820c255-220 506-264 780-208 122 24 235 19 365-33" stroke-width="1"/>
+    <path d="M238 0c90 164 227 247 390 273 199 31 367 13 572-135" stroke-width="1.5"/>
+    <path d="M485 0c74 176 189 260 343 290 154 30 295 5 372-94" stroke-width="1"/>
+  </g>
+  <g transform="translate(880 212)" fill="none" stroke="#e9ffbf">
+    <circle r="78" stroke-opacity=".24"/>
+    <circle r="142" stroke-opacity=".18"/>
+    <circle r="214" stroke-opacity=".13"/>
+    <circle r="292" stroke-opacity=".08"/>
+    <path d="M0 0L-204 127" stroke-opacity=".2"/>
+    <path d="M0 0L178 112" stroke-opacity=".36"/>
+    <circle r="8" fill="#efffbe" stroke="none" filter="url(#glow)"/>
+    <circle r="7" cx="-121" cy="64" fill="#d8f99b" stroke="none"/>
+    <circle r="5" cx="139" cy="76" fill="#ffffff" stroke="none"/>
+    <circle r="4" cx="-36" cy="-183" fill="#caff9b" stroke="none"/>
+  </g>
+  <g fill="#e8ffce" font-family="Arial, sans-serif">
+    <text x="74" y="94" font-size="24" letter-spacing="4" opacity=".72">SAFETY SIGNAL / 04</text>
+    <text x="74" y="688" font-size="88" font-weight="300" letter-spacing="-4">先停下来核实</text>
+    <text x="78" y="740" font-size="24" opacity=".62">不转账 · 不给验证码 · 保存证据</text>
+  </g>
+</svg>

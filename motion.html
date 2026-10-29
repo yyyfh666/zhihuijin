@@ -1,0 +1,1702 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#eaf1e9">
+  <link rel="icon" href="assets/risk-radar.svg" type="image/svg+xml">
+  <title>智汇金 · 交互动效实验室</title>
+  <style>
+    :root {
+      --bg: #edf3ec;
+      --surface: #fbfdf9;
+      --surface-2: #e4ede5;
+      --ink: #102d27;
+      --muted: #4f665e;
+      --line: rgba(25, 72, 61, .13);
+      --primary: #146b58;
+      --primary-deep: #0a3e34;
+      --lime: #dff58f;
+      --sky: #b9e3dc;
+      --coral: #ea9b72;
+      --danger: #a7473e;
+      --card-ink: #f5fff9;
+      --radius: 24px;
+      --ease-out: cubic-bezier(.16, 1, .3, 1);
+      --safe-bottom: max(18px, env(safe-area-inset-bottom));
+      color-scheme: light;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      min-height: 100vh;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 9% 11%, rgba(238, 204, 139, .52), transparent 22rem),
+        radial-gradient(circle at 94% 29%, rgba(169, 219, 204, .62), transparent 28rem),
+        radial-gradient(circle at 60% 76%, rgba(223, 245, 143, .22), transparent 25rem),
+        #dce6dc;
+      font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    a { color: inherit; }
+    img { max-width: 100%; display: block; }
+    [hidden] { display: none !important; }
+    ::selection { color: #fff; background: var(--primary); }
+    :focus-visible { outline: 3px solid rgba(20, 107, 88, .34); outline-offset: 3px; }
+
+    .app {
+      position: relative;
+      width: min(100%, 460px);
+      min-height: 100vh;
+      margin: 0 auto;
+      overflow: hidden;
+      background:
+        radial-gradient(circle at 90% 1%, rgba(223, 245, 143, .24), transparent 13rem),
+        linear-gradient(180deg, #edf3ec 0%, #f4f7f1 52%, #edf3ec 100%);
+      box-shadow: 0 24px 90px rgba(15, 24, 21, .14);
+    }
+    .topbar {
+      position: relative;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 18px 22px 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-mark {
+      display: grid;
+      place-items: center;
+      width: 36px;
+      height: 36px;
+      border: 1px solid rgba(255,255,255,.2);
+      border-radius: 13px;
+      background: var(--primary-deep);
+      color: var(--lime);
+      font-family: Georgia, serif;
+      font-size: 20px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, .18);
+    }
+    .brand-copy { display: grid; gap: 1px; }
+    .brand-copy strong { font-size: 14px; letter-spacing: .04em; }
+    .brand-copy small { color: var(--muted); font-size: 12px; letter-spacing: .04em; }
+    .top-link {
+      display: inline-flex;
+      align-items: center;
+      min-height: 36px;
+      padding: 0 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(251, 253, 249, .72);
+      color: var(--primary);
+      font-size: 12px;
+      text-decoration: none;
+      backdrop-filter: blur(12px);
+    }
+
+    main { padding: 6px 22px 126px; }
+    section { scroll-margin-top: 20px; }
+    .opening { padding: 28px 0 10px; }
+    .opening h1 {
+      max-width: 370px;
+      margin: 0;
+      font-family: "Songti SC", "STSong", Georgia, serif;
+      font-size: clamp(39px, 11vw, 50px);
+      font-weight: 500;
+      line-height: 1.03;
+      letter-spacing: -.06em;
+    }
+    .opening p {
+      max-width: 345px;
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.78;
+    }
+    .motion-index {
+      display: flex;
+      gap: 7px;
+      margin-top: 22px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+      scrollbar-width: none;
+    }
+    .motion-index::-webkit-scrollbar { display: none; }
+    .motion-index span {
+      flex: 0 0 auto;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(251,253,249,.7);
+      color: #4c665e;
+      font-size: 12px;
+    }
+    .section-title {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 34px 0 13px;
+    }
+    .section-title h2 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: -.025em;
+    }
+    .section-title p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: right;
+    }
+    .wallet-stage {
+      position: relative;
+      isolation: isolate;
+      perspective: 980px;
+    }
+    .wallet-aura {
+      position: absolute;
+      z-index: -1;
+      inset: 18px -10px -18px;
+      border-radius: 38px;
+      background:
+        conic-gradient(from 215deg, rgba(223,245,143,.72), rgba(63,163,135,.32), rgba(146,205,224,.34), rgba(234,155,114,.28), rgba(223,245,143,.72));
+      filter: blur(30px);
+      opacity: .55;
+      animation: breathe 5.8s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { transform: scale(.94); opacity: .35; }
+      50% { transform: scale(1.06); opacity: .66; }
+    }
+    .wallet-card {
+      --rx: 0deg;
+      --ry: 0deg;
+      --mx: 50%;
+      --my: 35%;
+      position: relative;
+      min-height: 250px;
+      overflow: hidden;
+      padding: 22px;
+      border: 1px solid rgba(255, 255, 255, .16);
+      border-radius: 30px;
+      background:
+        linear-gradient(145deg, rgba(255,255,255,.08), transparent 35%),
+        linear-gradient(145deg, #104d42 0%, #0b332d 52%, #10384a 100%);
+      color: var(--card-ink);
+      box-shadow: 0 24px 54px rgba(0, 0, 0, .22), inset 0 1px 0 rgba(255,255,255,.12);
+      transform: rotateX(var(--rx)) rotateY(var(--ry)) translateZ(0);
+      transform-style: preserve-3d;
+      will-change: transform;
+      touch-action: pan-y;
+      transition: transform .18s var(--ease-out), box-shadow .18s ease;
+    }
+    .wallet-card.is-tracking { transition: none; }
+    .card-border {
+      --angle: 0deg;
+      position: absolute;
+      z-index: 5;
+      inset: -1px;
+      padding: 1px;
+      border-radius: inherit;
+      background: conic-gradient(from var(--angle), rgba(255,255,255,.04), rgba(223,245,143,.85), rgba(144,226,207,.16), rgba(255,255,255,.04) 48%, rgba(234,155,114,.45), rgba(255,255,255,.04));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events: none;
+      animation: border-turn 7s linear infinite;
+    }
+    @property --angle {
+      syntax: "<angle>";
+      initial-value: 0deg;
+      inherits: false;
+    }
+    @keyframes border-turn { to { --angle: 360deg; } }
+    .card-light {
+      position: absolute;
+      z-index: 0;
+      inset: 0;
+      background: radial-gradient(circle at var(--mx) var(--my), rgba(236, 255, 190, .34), rgba(158, 239, 211, .11) 23%, transparent 52%);
+      opacity: .8;
+      pointer-events: none;
+    }
+    .wallet-card > * { position: relative; z-index: 1; }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+    .card-top small { display: block; color: rgba(245,255,249,.76); font-size: 12px; }
+    .card-top strong { display: block; margin-top: 5px; font-size: 12px; font-weight: 500; }
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 9px;
+      border: 1px solid rgba(255,255,255,.14);
+      border-radius: 999px;
+      color: rgba(245,255,249,.76);
+      font-size: 12px;
+    }
+    .live-dot::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--lime);
+      box-shadow: 0 0 0 4px rgba(223,245,143,.1);
+    }
+    .balance-label { margin: 30px 0 2px; color: rgba(245,255,249,.76); font-size: 12px; }
+    .balance {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.045em;
+    }
+    .balance span:first-child { color: rgba(245,255,249,.55); font-size: 20px; }
+    .balance strong { font-size: 45px; font-weight: 400; }
+    .card-spark { width: 100%; height: 51px; margin-top: 7px; overflow: visible; }
+    .card-foot {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .card-foot p { margin: 0; color: rgba(245,255,249,.76); font-size: 12px; }
+    .morph-trigger {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 38px;
+      padding: 0 14px;
+      border: 1px solid rgba(255,255,255,.16);
+      border-radius: 999px;
+      background: var(--lime);
+      color: #183b31;
+      font-size: 12px;
+      font-weight: 650;
+      box-shadow: 0 7px 16px rgba(0,0,0,.16);
+    }
+    .morph-trigger span { font-size: 14px; }
+    .gesture-hint {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 13px 4px 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.55;
+    }
+    .gesture-hint button {
+      flex: 0 0 auto;
+      min-height: 30px;
+      padding: 0 10px;
+      border: 0;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--primary);
+      font-size: 12px;
+    }
+
+    .chart-card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      background: rgba(251,253,249,.86);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, .07);
+    }
+    .chart-readout {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 19px 19px 10px;
+    }
+    .chart-readout small { display: block; margin-bottom: 5px; color: var(--muted); font-size: 12px; }
+    .chart-value {
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 34px;
+      line-height: 1;
+      letter-spacing: -.045em;
+      font-variant-numeric: tabular-nums;
+    }
+    .chart-date { color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .chart-viewport {
+      position: relative;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x mandatory;
+      scroll-behavior: smooth;
+      scrollbar-width: none;
+      touch-action: pan-x;
+      cursor: grab;
+    }
+    .chart-viewport:active { cursor: grabbing; }
+    .chart-viewport::-webkit-scrollbar { display: none; }
+    .chart-stage {
+      position: relative;
+      width: 900px;
+      height: 188px;
+      padding: 0 148px;
+    }
+    .chart-grid { position: absolute; inset: 15px 0 24px; }
+    .chart-point {
+      position: absolute;
+      top: 0;
+      width: 82px;
+      height: 182px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      scroll-snap-align: center;
+      transform: translateX(-50%);
+    }
+    .point-dot {
+      position: absolute;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      border: 3px solid #f9fcf9;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 3px 9px rgba(0,0,0,.18);
+      transform: translate(-50%, -50%) scale(.72);
+      transition: transform .24s var(--ease-out), box-shadow .24s ease;
+    }
+    .chart-point.active .point-dot {
+      transform: translate(-50%, -50%) scale(1.18);
+      box-shadow: 0 0 0 8px rgba(0,0,0,.06), 0 6px 15px rgba(0,0,0,.2);
+    }
+    .point-label {
+      position: absolute;
+      left: 50%;
+      bottom: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      white-space: nowrap;
+      transform: translateX(-50%);
+    }
+    .chart-note {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 19px 17px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .chart-note span:first-child { display: inline-flex; align-items: center; gap: 6px; }
+    .chart-note span:first-child::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--primary); }
+
+    .focus-rail {
+      display: flex;
+      gap: 12px;
+      overflow-x: auto;
+      margin: 0 -22px;
+      padding: 4px 54px 12px;
+      scroll-padding-inline: 54px;
+      scroll-snap-type: x mandatory;
+      scrollbar-width: none;
+      overscroll-behavior-x: contain;
+    }
+    .focus-rail::-webkit-scrollbar { display: none; }
+    .focus-card {
+      flex: 0 0 76%;
+      min-height: 245px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 25px;
+      background: var(--surface);
+      box-shadow: 0 10px 28px rgba(0, 0, 0, .07);
+      scroll-snap-align: center;
+      transform: scale(.94);
+      opacity: .66;
+      transition: transform .22s var(--ease-out), opacity .22s ease, box-shadow .22s ease;
+    }
+    .focus-card.focused {
+      transform: scale(1);
+      opacity: 1;
+      box-shadow: 0 16px 36px rgba(0, 0, 0, .12);
+    }
+    .focus-visual {
+      position: relative;
+      width: 100%;
+      height: 145px;
+      overflow: hidden;
+      padding: 0;
+      border: 0;
+      background: #0a3e34;
+    }
+    .focus-visual img { width: 100%; height: 100%; object-fit: cover; }
+    .focus-visual::after {
+      content: "展开";
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      padding: 6px 9px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 999px;
+      background: rgba(8,34,29,.62);
+      color: #fff;
+      font-size: 12px;
+      backdrop-filter: blur(8px);
+    }
+    .focus-copy { padding: 14px 16px 16px; }
+    .focus-copy h3 { margin: 0; font-size: 14px; line-height: 1.45; letter-spacing: -.015em; }
+    .focus-copy p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .plain-focus { min-height: 245px; padding: 20px; background: linear-gradient(155deg, #f9fcfa, #e6efe7); }
+    .signal-orb {
+      display: grid;
+      place-items: center;
+      width: 72px;
+      height: 72px;
+      margin: 8px 0 25px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 30%, #f5ffca, #a8dcae 37%, #145c4c 72%);
+      box-shadow: 0 12px 25px rgba(0,0,0,.16);
+    }
+    .signal-orb svg { width: 34px; height: 34px; color: #123e34; }
+    .plain-focus h3 { margin: 0; font-size: 19px; line-height: 1.25; letter-spacing: -.03em; }
+    .plain-focus p { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+
+    .task-sequence {
+      display: grid;
+      gap: 8px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+    .task-item {
+      display: grid;
+      grid-template-columns: 35px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 66px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(251,253,249,.9);
+      box-shadow: 0 7px 20px rgba(0,0,0,.045);
+    }
+    .js .stagger-item {
+      opacity: 0;
+      transform: translateY(15px) scale(.985);
+    }
+    .js .stagger-item.is-in {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      transition: opacity .34s ease, transform .5s var(--ease-out);
+      transition-delay: calc(var(--i) * 55ms);
+    }
+    .task-number {
+      display: grid;
+      place-items: center;
+      width: 35px;
+      height: 35px;
+      border-radius: 12px;
+      background: var(--surface-2);
+      color: var(--primary);
+      font-family: Georgia, serif;
+      font-size: 15px;
+    }
+    .task-copy strong { display: block; font-size: 12px; line-height: 1.4; }
+    .task-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .task-state {
+      border: 0;
+      border-radius: 999px;
+      padding: 7px 9px;
+      background: var(--primary);
+      color: white;
+      font-size: 12px;
+    }
+    .drawer-entry {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-top: 15px;
+      padding: 17px;
+      border: 1px solid var(--line);
+      border-radius: 20px;
+      background: linear-gradient(145deg, rgba(251,253,249,.96), rgba(226,238,227,.92));
+    }
+    .drawer-entry strong { display: block; font-size: 12px; }
+    .drawer-entry span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; }
+    .drawer-entry button {
+      flex: 0 0 auto;
+      min-height: 40px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+      box-shadow: 0 8px 18px rgba(0,0,0,.16);
+    }
+
+    .physics-press { will-change: transform; }
+    .physics-press.pressing {
+      box-shadow: inset 0 5px 11px rgba(0,0,0,.2), 0 4px 10px rgba(0,0,0,.1);
+    }
+    .tab-dock {
+      position: fixed;
+      z-index: 30;
+      bottom: 10px;
+      left: 50%;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      width: min(calc(100% - 28px), 432px);
+      padding: 7px;
+      border: 1px solid rgba(255,255,255,.72);
+      border-radius: 25px;
+      background: rgba(245,250,245,.84);
+      box-shadow: 0 16px 38px rgba(0,0,0,.16);
+      transform: translateX(-50%);
+      backdrop-filter: blur(18px);
+    }
+    .tab-indicator {
+      position: absolute;
+      z-index: 0;
+      top: 7px;
+      bottom: 7px;
+      left: 0;
+      width: 25%;
+      border-radius: 19px;
+      background: var(--primary);
+      box-shadow: 0 8px 18px rgba(0,0,0,.2);
+      pointer-events: none;
+    }
+    .dock-tab {
+      position: relative;
+      z-index: 1;
+      min-height: 48px;
+      border: 0;
+      border-radius: 18px;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      transition: color .18s ease;
+    }
+    .dock-tab.active { color: #fff; }
+    .dock-tab svg { width: 17px; height: 17px; margin-bottom: 3px; vertical-align: middle; }
+    .dock-tab span { display: block; }
+
+    .overlay-root {
+      position: fixed;
+      z-index: 60;
+      inset: 0;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+    .overlay-scrim {
+      position: absolute;
+      inset: 0;
+      border: 0;
+      background: rgba(7, 30, 25, .42);
+      backdrop-filter: blur(8px);
+    }
+    .morph-panel {
+      position: relative;
+      width: min(calc(100% - 34px), 408px);
+      min-height: 290px;
+      overflow: hidden;
+      padding: 26px;
+      border: 1px solid rgba(255,255,255,.18);
+      border-radius: 29px;
+      background:
+        radial-gradient(circle at 90% 8%, rgba(223,245,143,.2), transparent 11rem),
+        #0b352e;
+      color: #f7fff9;
+      box-shadow: 0 30px 80px rgba(0,0,0,.3);
+      transform-origin: top left;
+    }
+    .panel-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border: 1px solid rgba(255,255,255,.13);
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      color: #fff;
+      font-size: 18px;
+    }
+    .morph-panel h2 {
+      max-width: 270px;
+      margin: 46px 0 10px;
+      font-family: "Songti SC", "STSong", Georgia, serif;
+      font-size: 29px;
+      font-weight: 500;
+      line-height: 1.18;
+      letter-spacing: -.045em;
+    }
+    .morph-panel > p { margin: 0; color: rgba(247,255,249,.78); font-size: 12px; line-height: 1.75; }
+    .advice-scale {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 7px;
+      margin: 24px 0;
+    }
+    .advice-scale span {
+      min-height: 58px;
+      padding: 12px 8px;
+      border: 1px solid rgba(255,255,255,.1);
+      border-radius: 14px;
+      color: rgba(247,255,249,.7);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .advice-scale b { display: block; margin-bottom: 4px; color: var(--lime); font-size: 17px; }
+    .panel-action {
+      width: 100%;
+      min-height: 45px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--lime);
+      color: #163c32;
+      font-size: 12px;
+      font-weight: 650;
+    }
+
+    .insight-overlay { place-items: start center; overflow-y: auto; padding: 56px 18px 32px; }
+    .insight-panel {
+      position: relative;
+      width: min(100%, 416px);
+      padding: 24px;
+      border-radius: 27px;
+      background: #fbfdf9;
+      box-shadow: 0 30px 90px rgba(0,0,0,.3);
+    }
+    .insight-panel .detail-close {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 50%;
+      background: #fff;
+      color: var(--primary);
+      font-size: 18px;
+    }
+    .insight-hero {
+      margin: -24px -24px 22px;
+      padding: 28px 24px 25px;
+      border-radius: 27px 27px 22px 22px;
+      background: linear-gradient(145deg, #104d42, #0b332d 60%, #123b50);
+      color: #f5fff9;
+    }
+    .insight-hero small { color: rgba(245,255,249,.74); font-size: 12px; }
+    .insight-hero strong {
+      display: block;
+      margin-top: 22px;
+      font-family: Georgia, serif;
+      font-size: 42px;
+      font-weight: 400;
+      letter-spacing: -.04em;
+    }
+    .insight-panel h2 { margin: 0 0 10px; font-size: 23px; letter-spacing: -.035em; }
+    .insight-panel .lead { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.75; }
+    .insight-list { display: grid; gap: 10px; margin: 24px 0; }
+    .insight-list div { display: flex; gap: 12px; align-items: flex-start; font-size: 12px; line-height: 1.65; }
+    .insight-list svg { flex: 0 0 auto; width: 20px; height: 20px; color: var(--primary); }
+    .insight-cta {
+      width: 100%;
+      min-height: 46px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+    }
+
+    .image-viewer {
+      z-index: 70;
+      place-items: center;
+      padding: 30px 14px;
+      background: rgba(5,19,17,.82);
+    }
+    .viewer-stage {
+      position: relative;
+      width: min(100%, 420px);
+      overflow: hidden;
+      border-radius: 24px;
+      background: #082d27;
+      box-shadow: 0 30px 80px rgba(0,0,0,.36);
+    }
+    .viewer-stage img { width: 100%; aspect-ratio: 1200 / 820; object-fit: cover; }
+    .viewer-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 38px;
+      height: 38px;
+      border: 1px solid rgba(255,255,255,.24);
+      border-radius: 50%;
+      background: rgba(7,27,23,.62);
+      color: #fff;
+      font-size: 20px;
+      backdrop-filter: blur(8px);
+    }
+
+    .drawer-root {
+      position: fixed;
+      z-index: 65;
+      inset: 0;
+      pointer-events: none;
+    }
+    .drawer-root.active { pointer-events: auto; }
+    .drawer-scrim {
+      position: absolute;
+      inset: 0;
+      border: 0;
+      background: rgba(7, 28, 24, .36);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .drawer {
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      display: flex;
+      flex-direction: column;
+      width: min(100%, 460px);
+      height: min(76vh, 680px);
+      padding: 0 22px calc(28px + env(safe-area-inset-bottom));
+      border-radius: 30px 30px 0 0;
+      background:
+        radial-gradient(circle at 85% 0%, rgba(223,245,143,.22), transparent 13rem),
+        #f7faf5;
+      box-shadow: 0 -20px 55px rgba(0,0,0,.18);
+      transform: translate(-50%, calc(100% - 64px));
+      will-change: transform;
+    }
+    .drawer-handle {
+      width: 100%;
+      height: 64px;
+      border: 0;
+      background: transparent;
+      touch-action: none;
+      cursor: grab;
+    }
+    .drawer-handle::before {
+      content: "";
+      display: block;
+      width: 44px;
+      height: 5px;
+      margin: 0 auto 12px;
+      border-radius: 999px;
+      background: #b8c9c1;
+    }
+    .drawer-handle span { color: var(--muted); font-size: 12px; }
+    .drawer h2 {
+      margin: 24px 0 9px;
+      font-family: "Songti SC", "STSong", Georgia, serif;
+      font-size: 31px;
+      font-weight: 500;
+      line-height: 1.15;
+      letter-spacing: -.045em;
+    }
+    .drawer > p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .drawer-options { display: grid; gap: 9px; margin: 24px 0; }
+    .drawer-option {
+      display: grid;
+      grid-template-columns: 36px 1fr auto;
+      align-items: center;
+      gap: 12px;
+      min-height: 58px;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      background: #fff;
+      text-align: left;
+    }
+    .drawer-option b {
+      display: grid;
+      place-items: center;
+      width: 34px;
+      height: 34px;
+      border-radius: 11px;
+      background: var(--surface-2);
+      color: var(--primary);
+      font-family: Georgia, serif;
+      font-size: 15px;
+    }
+    .drawer-option strong { display: block; font-size: 12px; }
+    .drawer-option small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .drawer-option span { color: var(--primary); font-size: 15px; }
+    .drawer-confirm {
+      width: 100%;
+      min-height: 47px;
+      margin-top: auto;
+      margin-bottom: 8px;
+      border: 0;
+      border-radius: 999px;
+      background: var(--primary);
+      color: #fff;
+      font-size: 12px;
+    }
+
+    @media (max-width: 520px) {
+      .app { box-shadow: none; }
+      .tab-dock { width: calc(100% - 20px); bottom: 8px; }
+    }
+    @media (min-width: 760px) {
+      .app { margin-top: 24px; margin-bottom: 24px; min-height: calc(100vh - 48px); border-radius: 36px; }
+      .tab-dock { bottom: 34px; width: 432px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+      .wallet-card { transform: none !important; }
+      .js .stagger-item { opacity: 1; transform: none; }
+      .focus-card { transform: none; opacity: 1; }
+      .chart-viewport { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app" id="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">¥</div>
+        <div class="brand-copy">
+          <strong>智汇金</strong>
+          <small>交互动效实验室</small>
+        </div>
+      </div>
+      <a class="top-link" href="index.html">返回产品</a>
+    </header>
+
+    <main>
+      <section class="opening">
+        <h1>让数字，<br>回应你的手。</h1>
+        <p>拖动、按压、滑动。每一次反馈都对应一个真实动作，而不是为了动而动的装饰。</p>
+        <div class="motion-index" aria-label="本页包含的交互动效">
+          <span>磁吸效果</span>
+          <span>液态形变</span>
+          <span>3D 视差</span>
+          <span>滚动聚焦</span>
+          <span>流体 Tab</span>
+          <span>图片展开</span>
+          <span>手势抽屉</span>
+          <span>物理回弹</span>
+        </div>
+      </section>
+
+      <section id="section-budget" aria-labelledby="budget-title">
+        <div class="section-title">
+          <h2 id="budget-title">余额不是静态数字</h2>
+          <p>拖动卡片 · 点击查看</p>
+        </div>
+        <div class="wallet-stage">
+          <div class="wallet-aura" aria-hidden="true"></div>
+          <article class="wallet-card" id="walletCard" role="button" tabindex="0" aria-label="查看余额洞察详情">
+            <div class="card-border" aria-hidden="true"></div>
+            <div class="card-light" aria-hidden="true"></div>
+            <div class="card-top">
+              <div>
+                <small>10 月可用余额</small>
+                <strong>下一次到账 · 11 月 20 日</strong>
+              </div>
+              <span class="live-dot">实时预测</span>
+            </div>
+            <p class="balance-label">预计到账前剩余</p>
+            <div class="balance"><span>¥</span><strong id="balanceAmount">1,284</strong></div>
+            <svg class="card-spark" viewBox="0 0 330 54" aria-hidden="true">
+              <defs>
+                <linearGradient id="spark-fill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0" stop-color="#dff58f" stop-opacity=".34"/>
+                  <stop offset="1" stop-color="#dff58f" stop-opacity="0"/>
+                </linearGradient>
+              </defs>
+              <path d="M2 38C31 34 48 20 73 23s37 14 63 7 43-20 69-15 37 21 62 12 37-18 61-11 28 11 49 3v32H2Z" fill="url(#spark-fill)"/>
+              <path d="M2 38C31 34 48 20 73 23s37 14 63 7 43-20 69-15 37 21 62 12 37-18 61-11 28 11 49 3" fill="none" stroke="#dff58f" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <div class="card-foot">
+              <p>预计 11 月 14 日低于安全线</p>
+              <button class="morph-trigger physics-press" id="morphTrigger" type="button"><span aria-hidden="true">＋</span>查看建议</button>
+            </div>
+          </article>
+        </div>
+        <div class="gesture-hint">
+          <span>触摸卡片，光源跟随手指；松手后由弹簧阻尼带回正位。</span>
+          <button id="detailTrigger" type="button">展开洞察</button>
+        </div>
+      </section>
+
+      <section id="section-trend" aria-labelledby="trend-title">
+        <div class="section-title">
+          <h2 id="trend-title">余额会走多远</h2>
+          <p>左右滑动 · 松手磁吸</p>
+        </div>
+        <div class="chart-card">
+          <div class="chart-readout" aria-live="polite">
+            <div>
+              <small id="chartMoment">今天</small>
+              <strong class="chart-value" id="chartValue">¥1,284</strong>
+            </div>
+            <span class="chart-date" id="chartDate">10 月 25 日</span>
+          </div>
+          <div class="chart-viewport" id="chartViewport" tabindex="0" aria-label="余额趋势，可左右滑动并自动吸附数据点">
+            <div class="chart-stage">
+              <svg class="chart-grid" width="900" height="150" viewBox="0 0 900 150" aria-hidden="true">
+                <defs>
+                  <linearGradient id="trend-fill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0" stop-color="#146b58" stop-opacity=".2"/>
+                    <stop offset="1" stop-color="#146b58" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+                <line x1="70" y1="44" x2="830" y2="44" stroke="#dce7df" stroke-dasharray="4 6"/>
+                <line x1="70" y1="82" x2="830" y2="82" stroke="#dce7df" stroke-dasharray="4 6"/>
+                <path d="M70 38C135 43 173 63 225 67s75 27 128 38 83 11 124 25 90 15 133 9 107-25 156-33 77-17 112-8v78H70Z" fill="url(#trend-fill)"/>
+                <path d="M70 38C135 43 173 63 225 67s75 27 128 38 83 11 124 25 90 15 133 9 107-25 156-33 77-17 112-8" fill="none" stroke="#146b58" stroke-width="2.5" stroke-linecap="round"/>
+              </svg>
+              <button class="chart-point active" style="left:148px" data-value="1284" data-label="今天" data-date="10 月 25 日" aria-label="今天，预计余额 1284 元"><span class="point-dot" style="top:38px"></span><span class="point-label">10/25</span></button>
+              <button class="chart-point" style="left:280px" data-value="1120" data-label="3 天后" data-date="10 月 28 日" aria-label="3 天后，预计余额 1120 元"><span class="point-dot" style="top:53px"></span><span class="point-label">10/28</span></button>
+              <button class="chart-point" style="left:412px" data-value="894" data-label="7 天后" data-date="11 月 1 日" aria-label="7 天后，预计余额 894 元"><span class="point-dot" style="top:69px"></span><span class="point-label">11/01</span></button>
+              <button class="chart-point" style="left:544px" data-value="710" data-label="12 天后" data-date="11 月 6 日" aria-label="12 天后，预计余额 710 元"><span class="point-dot" style="top:83px"></span><span class="point-label">11/06</span></button>
+              <button class="chart-point" style="left:676px" data-value="478" data-label="18 天后" data-date="11 月 12 日" aria-label="18 天后，预计余额 478 元"><span class="point-dot" style="top:99px"></span><span class="point-label">11/12</span></button>
+              <button class="chart-point" style="left:808px" data-value="240" data-label="到账前" data-date="11 月 20 日" aria-label="到账前，预计余额 240 元"><span class="point-dot" style="top:116px"></span><span class="point-label">11/20</span></button>
+            </div>
+          </div>
+          <div class="chart-note"><span>吸附点会放大，数值同步滚动</span><span>预计值，不是收益承诺</span></div>
+        </div>
+      </section>
+
+      <section id="section-safety" aria-labelledby="safety-title">
+        <div class="section-title">
+          <h2 id="safety-title">视线停在哪里，哪里就更清楚</h2>
+          <p>横向滑动 · 聚焦放大</p>
+        </div>
+        <div class="focus-rail" id="focusRail">
+          <article class="focus-card focused">
+            <button class="focus-visual physics-press" id="imageTrigger" type="button" aria-label="展开校园金融安全雷达图片">
+              <img src="assets/risk-radar.svg" alt="校园金融安全雷达抽象图">
+            </button>
+            <div class="focus-copy">
+              <h3>陌生链接、验证码、转账请求</h3>
+              <p>把风险信号放在一处，先停一下再判断。</p>
+            </div>
+          </article>
+          <article class="focus-card plain-focus">
+            <div class="signal-orb" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3 4.5 6v5.2c0 4.6 3 7.9 7.5 9.8 4.5-1.9 7.5-5.2 7.5-9.8V6L12 3Z"/><path d="M9 12.3 11 14l4-4"/></svg>
+            </div>
+            <h3>先核实，<br>再行动。</h3>
+            <p>安全提示应当让你更冷静，而不是制造恐慌。</p>
+          </article>
+          <article class="focus-card plain-focus">
+            <div class="signal-orb" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 19V8m7 11V5m7 14v-8"/><path d="M3 21h18"/></svg>
+            </div>
+            <h3>每月留出<br>缓冲带。</h3>
+            <p>不是把每一笔钱都花到刚好，而是给意外留空间。</p>
+          </article>
+        </div>
+      </section>
+
+      <section id="section-plan" aria-labelledby="plan-title">
+        <div class="section-title">
+          <h2 id="plan-title">今天只做三件事</h2>
+          <p>交错入场 · 按压回弹</p>
+        </div>
+        <ol class="task-sequence" id="taskSequence">
+          <li class="task-item stagger-item" style="--i:0">
+            <span class="task-number">01</span>
+            <span class="task-copy"><strong>检查本周计划事件</strong><span>先处理金额最大的一项</span></span>
+            <button class="task-state physics-press" type="button">查看</button>
+          </li>
+          <li class="task-item stagger-item" style="--i:1">
+            <span class="task-number">02</span>
+            <span class="task-copy"><strong>记下今天第一笔支出</strong><span>让预测从估算变成真实</span></span>
+            <button class="task-state physics-press" type="button">记录</button>
+          </li>
+          <li class="task-item stagger-item" style="--i:2">
+            <span class="task-number">03</span>
+            <span class="task-copy"><strong>完成一张安全知识卡</strong><span>用两分钟识别一个风险信号</span></span>
+            <button class="task-state physics-press" type="button">学习</button>
+          </li>
+        </ol>
+        <div class="drawer-entry">
+          <div><strong>把本周的决定放进复盘抽屉</strong><span>向上拖、向下甩，松手自动吸附</span></div>
+          <button class="physics-press" id="drawerTrigger" type="button">打开</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="tab-dock" aria-label="页面章节">
+      <span class="tab-indicator" id="tabIndicator" aria-hidden="true"></span>
+      <button class="dock-tab active" data-target="section-budget" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16v11H4z"/><path d="M4 10h16"/></svg><span>余额</span></button>
+      <button class="dock-tab" data-target="section-trend" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 17 9 12l3 2 7-8"/><path d="M15 6h4v4"/></svg><span>趋势</span></button>
+      <button class="dock-tab" data-target="section-safety" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v5c0 4.4 2.9 7.5 7 9 4.1-1.5 7-4.6 7-9V6l-7-3Z"/></svg><span>安全</span></button>
+      <button class="dock-tab" data-target="section-plan" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 5h14v14H5z"/><path d="m8 12 2.2 2L16 8.5"/></svg><span>计划</span></button>
+    </nav>
+  </div>
+
+  <div class="overlay-root" id="morphOverlay" hidden>
+    <button class="overlay-scrim" type="button" data-close-morph aria-label="关闭建议面板"></button>
+    <section class="morph-panel" id="morphPanel" role="dialog" aria-modal="true" aria-labelledby="morphTitle">
+      <button class="panel-close physics-press" type="button" data-close-morph aria-label="关闭">×</button>
+      <h2 id="morphTitle">这笔钱，先分三格看。</h2>
+      <p>不是直接告诉你“能花”或“不能花”，而是把月底影响摊开，让你自己做出更稳的选择。</p>
+      <div class="advice-scale">
+        <span><b>42%</b>到账前余额占比</span>
+        <span><b>6 天</b>安全缓冲可维持</span>
+        <span><b>1 件</b>建议今天先暂停</span>
+      </div>
+      <button class="panel-action physics-press" type="button" data-close-morph>回到余额卡</button>
+    </section>
+  </div>
+
+  <div class="overlay-root insight-overlay" id="insightOverlay" hidden>
+    <button class="overlay-scrim" type="button" data-close-insight aria-label="关闭余额洞察"></button>
+    <article class="insight-panel" role="dialog" aria-modal="true" aria-labelledby="insightTitle">
+      <button class="detail-close physics-press" type="button" data-close-insight aria-label="关闭">×</button>
+      <div class="insight-hero">
+        <small>预计到账前剩余</small>
+        <strong>¥1,284</strong>
+        <small>预测可信度 · 正在从估算转为真实</small>
+      </div>
+      <h2 id="insightTitle">钱包不是突然变紧的。</h2>
+      <p class="lead">真正的压力通常来自几个可回看的小选择。先检查计划事件，再决定今天要不要暂停一笔非必需消费。</p>
+      <div class="insight-list">
+        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3v18M3 12h18"/></svg><span>10 月 28 日的社团旅行会提前拉低余额曲线。</span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 19V8m7 11V5m7 14v-8"/></svg><span>最近 7 天的餐饮支出比你的均衡画像高 12%。</span></div>
+        <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3 5 6v5c0 4.4 2.9 7.5 7 9 4.1-1.5 7-4.6 7-9V6l-7-3Z"/></svg><span>留出 ¥180 缓冲，比用借贷补消费缺口更稳妥。</span></div>
+      </div>
+      <button class="insight-cta physics-press" type="button" data-close-insight>我知道先看什么了</button>
+    </article>
+  </div>
+
+  <div class="overlay-root image-viewer" id="imageViewer" hidden>
+    <div class="viewer-stage" id="viewerStage">
+      <img src="assets/risk-radar.svg" alt="校园金融安全雷达抽象图">
+      <button class="viewer-close physics-press" id="closeImage" type="button" aria-label="关闭图片">×</button>
+    </div>
+  </div>
+
+  <div class="drawer-root" id="drawerRoot" aria-hidden="true">
+    <button class="drawer-scrim" id="drawerScrim" type="button" aria-label="关闭复盘抽屉"></button>
+    <section class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+      <button class="drawer-handle" id="drawerHandle" type="button" aria-label="向上拖动展开复盘抽屉"><span>上拖展开 · 下甩关闭</span></button>
+      <h2 id="drawerTitle">把决定放回计划里。</h2>
+      <p>松手后，抽屉会根据位置和手势速度选择关闭、半展开或完全展开。</p>
+      <div class="drawer-options">
+        <button class="drawer-option physics-press" type="button"><b>01</b><span><strong>保留旅行预算</strong><small>从餐饮和娱乐里挪出缓冲</small></span><span>›</span></button>
+        <button class="drawer-option physics-press" type="button"><b>02</b><span><strong>暂停一笔非必需消费</strong><small>开启 24 小时冷静期</small></span><span>›</span></button>
+        <button class="drawer-option physics-press" type="button"><b>03</b><span><strong>先记一笔真实支出</strong><small>让预测不再依赖估算</small></span><span>›</span></button>
+      </div>
+      <button class="drawer-confirm physics-press" type="button" id="drawerConfirm">加入今天的计划</button>
+    </section>
+  </div>
+
+  <script>
+    document.documentElement.classList.add("js");
+
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const byId = (id) => document.getElementById(id);
+    const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+    const easeOut = "cubic-bezier(.16,1,.3,1)";
+    const fullMotion = () => !reduceMotion.matches;
+
+    function simulateSpring({ from, to, velocity = 0, stiffness = 210, damping = 27, steps = 42 }) {
+      const frames = [];
+      let position = from;
+      let speed = velocity;
+      const dt = 1 / 60;
+      for (let index = 0; index <= steps; index += 1) {
+        const acceleration = (to - position) * stiffness - speed * damping;
+        speed += acceleration * dt;
+        position += speed * dt;
+        frames.push(position);
+      }
+      frames[frames.length - 1] = to;
+      return frames;
+    }
+
+    function springTransform(axis, from, to, options = {}) {
+      const values = simulateSpring({ from, to, ...options });
+      return values.map((value, index) => ({
+        transform: `translate${axis}(${value}px)`,
+        offset: index / (values.length - 1)
+      }));
+    }
+
+    function readCookie() {
+      return document.cookie;
+    }
+
+    function showOverlay(element) {
+      element.hidden = false;
+      const scrim = element.querySelector(".overlay-scrim");
+      if (scrim && fullMotion()) {
+        scrim.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: "ease-out" });
+      }
+    }
+
+    function hideOverlay(element) {
+      element.hidden = true;
+    }
+
+    const walletCard = byId("walletCard");
+    let cardTracking = false;
+    let cardStart = null;
+    let cardTravel = 0;
+    let suppressCardClick = false;
+
+    function setCardLight(clientX, clientY) {
+      const rect = walletCard.getBoundingClientRect();
+      walletCard.style.setProperty("--mx", `${clamp(clientX - rect.left, 0, rect.width)}px`);
+      walletCard.style.setProperty("--my", `${clamp(clientY - rect.top, 0, rect.height)}px`);
+    }
+
+    walletCard.addEventListener("pointerdown", (event) => {
+      if (!fullMotion() || event.target.closest("button")) return;
+      cardTracking = true;
+      cardStart = { x: event.clientX, y: event.clientY };
+      cardTravel = 0;
+      suppressCardClick = false;
+      walletCard.classList.add("is-tracking");
+      walletCard.setPointerCapture(event.pointerId);
+      setCardLight(event.clientX, event.clientY);
+    });
+
+    walletCard.addEventListener("pointermove", (event) => {
+      setCardLight(event.clientX, event.clientY);
+      if (!cardTracking || !cardStart) return;
+      const rect = walletCard.getBoundingClientRect();
+      cardTravel += Math.abs(event.movementX || 0) + Math.abs(event.movementY || 0);
+      const ry = clamp((event.clientX - rect.left - rect.width / 2) / 9, -9, 9);
+      const rx = clamp(-(event.clientY - rect.top - rect.height / 2) / 10, -8, 8);
+      walletCard.style.setProperty("--rx", `${rx}deg`);
+      walletCard.style.setProperty("--ry", `${ry}deg`);
+    });
+
+    function releaseCard() {
+      if (!cardTracking) return;
+      cardTracking = false;
+      suppressCardClick = cardTravel > 10;
+      if (suppressCardClick) setTimeout(() => { suppressCardClick = false; }, 220);
+      walletCard.classList.remove("is-tracking");
+      if (fullMotion()) {
+        const animation = walletCard.animate([
+          { transform: `rotateX(${walletCard.style.getPropertyValue("--rx") || "0deg"}) rotateY(${walletCard.style.getPropertyValue("--ry") || "0deg"})` },
+          { transform: "rotateX(2.2deg) rotateY(-1.8deg)", offset: 0.38 },
+          { transform: "rotateX(-0.8deg) rotateY(.7deg)", offset: 0.7 },
+          { transform: "rotateX(0) rotateY(0)" }
+        ], { duration: 680, easing: "linear" });
+        animation.finished.finally(() => {
+          walletCard.style.setProperty("--rx", "0deg");
+          walletCard.style.setProperty("--ry", "0deg");
+          walletCard.style.setProperty("--mx", "50%");
+          walletCard.style.setProperty("--my", "35%");
+        });
+      } else {
+        walletCard.style.setProperty("--rx", "0deg");
+        walletCard.style.setProperty("--ry", "0deg");
+      }
+    }
+    walletCard.addEventListener("pointerup", releaseCard);
+    walletCard.addEventListener("pointercancel", releaseCard);
+
+    const morphOverlay = byId("morphOverlay");
+    const morphPanel = byId("morphPanel");
+    const morphTrigger = byId("morphTrigger");
+    let morphBusy = false;
+
+    function openMorph() {
+      if (morphBusy) return;
+      morphBusy = true;
+      const start = morphTrigger.getBoundingClientRect();
+      showOverlay(morphOverlay);
+      const end = morphPanel.getBoundingClientRect();
+      if (fullMotion()) {
+        const deltaX = start.left - end.left;
+        const deltaY = start.top - end.top;
+        const scaleX = start.width / end.width;
+        const scaleY = start.height / end.height;
+        morphPanel.querySelectorAll(":scope > *").forEach((child) => {
+          child.animate([
+            { opacity: 0 },
+            { opacity: 0, offset: .72 },
+            { opacity: 1 }
+          ], { duration: 500, easing: "ease-out", fill: "both" });
+        });
+        const animation = morphPanel.animate([
+          {
+            transform: `translate(${deltaX}px, ${deltaY}px) scale(${scaleX}, ${scaleY})`,
+            borderRadius: "999px",
+            opacity: .62
+          },
+          {
+            transform: "translate(0, 0) scale(1, 1)",
+            borderRadius: "29px",
+            opacity: 1
+          }
+        ], { duration: 520, easing: easeOut });
+        animation.finished.finally(() => {
+          morphPanel.style.cssText = "";
+          morphPanel.querySelector(".panel-close")?.focus();
+          morphBusy = false;
+        });
+      } else {
+        morphBusy = false;
+      }
+    }
+
+    function closeMorph() {
+      if (!morphOverlay || morphOverlay.hidden) return;
+      hideOverlay(morphOverlay);
+      morphTrigger.focus();
+    }
+
+    morphTrigger.addEventListener("click", openMorph);
+    morphOverlay.querySelectorAll("[data-close-morph]").forEach((button) => {
+      button.addEventListener("click", closeMorph);
+    });
+
+    const insightOverlay = byId("insightOverlay");
+    const detailTrigger = byId("detailTrigger");
+    let detailBusy = false;
+
+    function openInsight() {
+      if (detailBusy) return;
+      detailBusy = true;
+      const start = walletCard.getBoundingClientRect();
+      showOverlay(insightOverlay);
+      const panel = insightOverlay.querySelector(".insight-panel");
+      const end = panel.getBoundingClientRect();
+      const clone = walletCard.cloneNode(true);
+      clone.removeAttribute("id");
+      clone.removeAttribute("role");
+      clone.removeAttribute("tabindex");
+      clone.style.cssText = `position:fixed;z-index:72;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;margin:0;pointer-events:none;transform:none;`;
+      document.body.appendChild(clone);
+      walletCard.style.visibility = "hidden";
+      panel.style.opacity = "0";
+      if (fullMotion()) {
+        const animation = clone.animate([
+          { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: "30px" },
+          { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${Math.min(end.height, 360)}px`, borderRadius: "27px" }
+        ], { duration: 540, easing: easeOut });
+        animation.finished.finally(() => {
+          clone.remove();
+          panel.style.opacity = "1";
+          walletCard.style.visibility = "";
+          detailBusy = false;
+        });
+      } else {
+        clone.remove();
+        panel.style.opacity = "1";
+        walletCard.style.visibility = "";
+        detailBusy = false;
+      }
+    }
+
+    function closeInsight() {
+      hideOverlay(insightOverlay);
+      detailTrigger.focus();
+    }
+
+    detailTrigger.addEventListener("click", openInsight);
+    walletCard.addEventListener("click", (event) => {
+      if (suppressCardClick) {
+        event.preventDefault();
+        event.stopPropagation();
+        suppressCardClick = false;
+        return;
+      }
+      if (!event.target.closest("button")) openInsight();
+    });
+    walletCard.addEventListener("keydown", (event) => {
+      if ((event.key === "Enter" || event.key === " ") && !event.target.closest("button")) {
+        event.preventDefault();
+        openInsight();
+      }
+    });
+    insightOverlay.querySelectorAll("[data-close-insight]").forEach((button) => {
+      button.addEventListener("click", closeInsight);
+    });
+
+    const chartViewport = byId("chartViewport");
+    const chartPoints = [...chartViewport.querySelectorAll(".chart-point")];
+    const chartValue = byId("chartValue");
+    const chartMoment = byId("chartMoment");
+    const chartDate = byId("chartDate");
+    let activePoint = 0;
+    let counterFrame = 0;
+    let counterValue = 1284;
+    let targetCounter = 1284;
+
+    function springCounter() {
+      if (!fullMotion()) {
+        counterValue = targetCounter;
+      } else {
+        counterValue += (targetCounter - counterValue) * .18;
+        if (Math.abs(targetCounter - counterValue) < .4) counterValue = targetCounter;
+      }
+      chartValue.textContent = `¥${Math.round(counterValue).toLocaleString("zh-CN")}`;
+      if (counterValue !== targetCounter) counterFrame = requestAnimationFrame(springCounter);
+      else counterFrame = 0;
+    }
+
+    function setActivePoint(index) {
+      const safeIndex = clamp(index, 0, chartPoints.length - 1);
+      activePoint = safeIndex;
+      chartPoints.forEach((point, pointIndex) => point.classList.toggle("active", pointIndex === safeIndex));
+      const point = chartPoints[safeIndex];
+      targetCounter = Number(point.dataset.value);
+      chartMoment.textContent = point.dataset.label;
+      chartDate.textContent = point.dataset.date;
+      if (!counterFrame) counterFrame = requestAnimationFrame(springCounter);
+    }
+
+    function centerForPoint(point) {
+      return point.offsetLeft - (chartViewport.clientWidth - point.offsetWidth) / 2;
+    }
+
+    function updateChartFromScroll() {
+      const viewportCenter = chartViewport.scrollLeft + chartViewport.clientWidth / 2;
+      let closest = 0;
+      let distance = Infinity;
+      chartPoints.forEach((point, index) => {
+        const center = point.offsetLeft + point.offsetWidth / 2;
+        const currentDistance = Math.abs(center - viewportCenter);
+        if (currentDistance < distance) { closest = index; distance = currentDistance; }
+      });
+      if (closest !== activePoint) setActivePoint(closest);
+    }
+
+    chartViewport.addEventListener("scroll", updateChartFromScroll, { passive: true });
+    chartPoints.forEach((point, index) => {
+      point.addEventListener("click", () => {
+        chartViewport.scrollTo({ left: centerForPoint(point), behavior: fullMotion() ? "smooth" : "auto" });
+        setActivePoint(index);
+      });
+    });
+    requestAnimationFrame(() => {
+      chartViewport.scrollLeft = centerForPoint(chartPoints[0]);
+    });
+
+    const focusRail = byId("focusRail");
+    const focusCards = [...focusRail.querySelectorAll(".focus-card")];
+    let focusFrame = 0;
+    function updateFocusCards() {
+      focusFrame = 0;
+      if (!fullMotion()) {
+        focusCards.forEach((card) => { card.style.transform = "none"; card.classList.add("focused"); });
+        return;
+      }
+      const railCenter = focusRail.scrollLeft + focusRail.clientWidth / 2;
+      focusCards.forEach((card) => {
+        const center = card.offsetLeft + card.offsetWidth / 2;
+        const distance = Math.abs(center - railCenter) / card.offsetWidth;
+        const scale = clamp(1.01 - distance * .095, .91, 1.01);
+        card.style.transform = `scale(${scale})`;
+        card.style.opacity = `${clamp(1 - distance * .35, .55, 1)}`;
+        card.classList.toggle("focused", distance < .28);
+      });
+    }
+    focusRail.addEventListener("scroll", () => {
+      if (!focusFrame) focusFrame = requestAnimationFrame(updateFocusCards);
+    }, { passive: true });
+    requestAnimationFrame(updateFocusCards);
+
+    const imageViewer = byId("imageViewer");
+    const imageTrigger = byId("imageTrigger");
+    const viewerStage = byId("viewerStage");
+    let imageBusy = false;
+    function openImage() {
+      if (imageBusy) return;
+      imageBusy = true;
+      const source = imageTrigger.getBoundingClientRect();
+      imageViewer.hidden = false;
+      const target = viewerStage.getBoundingClientRect();
+      const image = imageTrigger.querySelector("img");
+      const clone = document.createElement("img");
+      clone.src = image.src;
+      clone.alt = "";
+      clone.style.cssText = `position:fixed;z-index:75;left:${source.left}px;top:${source.top}px;width:${source.width}px;height:${source.height}px;object-fit:cover;border-radius:20px;pointer-events:none;`;
+      document.body.appendChild(clone);
+      viewerStage.style.opacity = "0";
+      imageTrigger.style.visibility = "hidden";
+      if (fullMotion()) {
+        clone.animate([
+          { left: `${source.left}px`, top: `${source.top}px`, width: `${source.width}px`, height: `${source.height}px`, borderRadius: "20px" },
+          { left: `${target.left}px`, top: `${target.top}px`, width: `${target.width}px`, height: `${target.height}px`, borderRadius: "24px" }
+        ], { duration: 460, easing: easeOut }).finished.finally(() => {
+          clone.remove();
+          viewerStage.style.opacity = "1";
+          imageTrigger.style.visibility = "";
+          byId("closeImage").focus();
+          imageBusy = false;
+        });
+      } else {
+        clone.remove();
+        viewerStage.style.opacity = "1";
+        imageTrigger.style.visibility = "";
+        imageBusy = false;
+      }
+    }
+    imageTrigger.addEventListener("click", openImage);
+    byId("closeImage").addEventListener("click", () => {
+      imageViewer.hidden = true;
+      imageTrigger.focus();
+    });
+
+    const taskSequence = byId("taskSequence");
+    const taskObserver = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) entry.target.classList.add("is-in");
+      });
+    }, { threshold: .2 });
+    taskSequence.querySelectorAll(".stagger-item").forEach((item) => taskObserver.observe(item));
+
+    const drawerRoot = byId("drawerRoot");
+    const drawer = byId("drawer");
+    const drawerHandle = byId("drawerHandle");
+    const drawerScrim = byId("drawerScrim");
+    let drawerY = 0;
+    let drawerAnimation = null;
+    let drawerState = "closed";
+    let drawerDragging = false;
+    let dragStartY = 0;
+    let dragOriginY = 0;
+    let dragStartedAt = 0;
+    let previousY = 0;
+    let velocity = 0;
+
+    function drawerAnchors() {
+      const height = drawer.offsetHeight;
+      return {
+        open: 0,
+        peek: Math.max(110, height - 350),
+        closed: height + 24
+      };
+    }
+
+    function applyDrawerY(value) {
+      drawerY = value;
+      drawer.style.transform = `translate(-50%, ${value}px)`;
+      const anchors = drawerAnchors();
+      const visible = 1 - clamp(value / anchors.closed, 0, 1);
+      drawerScrim.style.opacity = String(visible * .95);
+      drawerScrim.style.pointerEvents = value < anchors.closed - 12 ? "auto" : "none";
+    }
+
+    function animateDrawerTo(target, initialVelocity = 0, doneState = "") {
+      const from = drawerY;
+      drawerAnimation?.cancel();
+      if (!fullMotion()) {
+        applyDrawerY(target);
+        drawerState = doneState || drawerState;
+        return;
+      }
+      const animation = drawer.animate(springTransform("Y", from, target, {
+        velocity: initialVelocity,
+        stiffness: 185,
+        damping: 25,
+        steps: 46
+      }), { duration: 760, easing: "linear" });
+      drawerAnimation = animation;
+      animation.finished.finally(() => {
+        if (drawerAnimation === animation) {
+          applyDrawerY(target);
+          drawerAnimation = null;
+        }
+      });
+      drawerY = target;
+      drawerState = doneState || drawerState;
+    }
+
+    function openDrawer() {
+      const anchors = drawerAnchors();
+      drawerRoot.classList.add("active");
+      drawerRoot.setAttribute("aria-hidden", "false");
+      applyDrawerY(anchors.closed);
+      drawerState = "peek";
+      animateDrawerTo(anchors.peek, -460, "peek");
+      drawerHandle.focus();
+    }
+
+    function closeDrawer() {
+      const anchors = drawerAnchors();
+      animateDrawerTo(anchors.closed, 420, "closed");
+      drawerRoot.classList.remove("active");
+      drawerRoot.setAttribute("aria-hidden", "true");
+      byId("drawerTrigger").focus();
+    }
+
+    function rubberBand(value, min, max) {
+      if (value >= min && value <= max) return value;
+      if (value < min) {
+        const overshoot = min - value;
+        return min - 90 * (1 - Math.exp(-overshoot / 90));
+      }
+      const overshoot = value - max;
+      return max + 70 * (1 - Math.exp(-overshoot / 70));
+    }
+
+    drawerHandle.addEventListener("pointerdown", (event) => {
+      const anchors = drawerAnchors();
+      drawerAnimation?.cancel();
+      drawerAnimation = null;
+      drawerDragging = true;
+      dragStartY = event.clientY;
+      dragOriginY = drawerY;
+      previousY = event.clientY;
+      velocity = 0;
+      dragStartedAt = performance.now();
+      drawerHandle.setPointerCapture(event.pointerId);
+    });
+
+    drawerHandle.addEventListener("pointermove", (event) => {
+      if (!drawerDragging) return;
+      const anchors = drawerAnchors();
+      const now = performance.now();
+      const elapsed = Math.max(1, now - dragStartedAt);
+      velocity = (event.clientY - previousY) / elapsed * 1000;
+      previousY = event.clientY;
+      dragStartedAt = now;
+      const next = rubberBand(dragOriginY + event.clientY - dragStartY, anchors.open - 12, anchors.closed);
+      applyDrawerY(next);
+    });
+
+    function finishDrawerDrag(event) {
+      if (!drawerDragging) return;
+      drawerDragging = false;
+      const anchors = drawerAnchors();
+      const projected = drawerY + velocity * .16;
+      let target = Object.entries(anchors).sort((a, b) => Math.abs(projected - a[1]) - Math.abs(projected - b[1]))[0];
+      if (Math.abs(velocity) > 620) {
+        if (velocity < 0) target = drawerY > anchors.peek + 40 ? ["peek", anchors.peek] : ["open", anchors.open];
+        else target = drawerY < anchors.peek - 40 ? ["peek", anchors.peek] : ["closed", anchors.closed];
+      }
+      if (target[0] === "closed") {
+        animateDrawerTo(anchors.closed, velocity, "closed");
+        drawerRoot.classList.remove("active");
+        drawerRoot.setAttribute("aria-hidden", "true");
+      } else {
+        drawerRoot.classList.add("active");
+        drawerRoot.setAttribute("aria-hidden", "false");
+        animateDrawerTo(target[1], velocity, target[0]);
+      }
+      if (event && drawerHandle.hasPointerCapture(event.pointerId)) drawerHandle.releasePointerCapture(event.pointerId);
+    }
+    drawerHandle.addEventListener("pointerup", finishDrawerDrag);
+    drawerHandle.addEventListener("pointercancel", finishDrawerDrag);
+    byId("drawerTrigger").addEventListener("click", openDrawer);
+    drawerScrim.addEventListener("click", closeDrawer);
+    byId("drawerConfirm").addEventListener("click", closeDrawer);
+    applyDrawerY(drawerAnchors().closed);
+
+    const tabs = [...document.querySelectorAll(".dock-tab")];
+    const tabIndicator = byId("tabIndicator");
+    let tabAnimation = null;
+
+    function moveTab(button, animate = true) {
+      tabs.forEach((tab) => tab.classList.toggle("active", tab === button));
+      const nav = button.parentElement;
+      const left = button.offsetLeft;
+      const width = button.offsetWidth;
+      tabIndicator.style.width = `${width}px`;
+      const currentLeft = parseFloat(getComputedStyle(tabIndicator).left) || 0;
+      tabAnimation?.cancel();
+      if (animate && fullMotion()) {
+        tabAnimation = tabIndicator.animate([
+          { left: `${currentLeft}px` },
+          { left: `${left}px` }
+        ], { duration: 480, easing: easeOut, fill: "forwards" });
+        tabAnimation.finished.finally(() => { tabIndicator.style.left = `${left}px`; });
+      } else {
+        tabIndicator.style.left = `${left}px`;
+      }
+    }
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        moveTab(tab);
+        byId(tab.dataset.target).scrollIntoView({ behavior: fullMotion() ? "smooth" : "auto", block: "start" });
+      });
+    });
+    requestAnimationFrame(() => moveTab(tabs[0], false));
+
+    const trackedSections = ["section-budget", "section-trend", "section-safety", "section-plan"]
+      .map((id) => byId(id))
+      .filter(Boolean);
+    let scrollSpyFrame = 0;
+    function updateActiveSection() {
+      scrollSpyFrame = 0;
+      const marker = Math.min(window.innerHeight * .3, 240);
+      const nearest = trackedSections
+        .map((section) => ({ section, distance: Math.abs(section.getBoundingClientRect().top - marker) }))
+        .sort((left, right) => left.distance - right.distance)[0]?.section;
+      if (!nearest) return;
+      const tab = tabs.find((item) => item.dataset.target === nearest.id);
+      if (tab && !tab.classList.contains("active")) moveTab(tab);
+    }
+    window.addEventListener("scroll", () => {
+      if (!scrollSpyFrame) scrollSpyFrame = requestAnimationFrame(updateActiveSection);
+    }, { passive: true });
+    updateActiveSection();
+
+    document.querySelectorAll(".physics-press").forEach((button) => {
+      const press = (event) => {
+        if (event.button !== undefined && event.button !== 0) return;
+        button.classList.add("pressing");
+        if (fullMotion()) button.style.transform = "scale(.96)";
+      };
+      const release = () => {
+        button.classList.remove("pressing");
+        if (!fullMotion()) {
+          button.style.transform = "";
+          return;
+        }
+        button.animate([
+          { transform: "scale(.96)" },
+          { transform: "scale(1.035)", offset: .55 },
+          { transform: "scale(.992)", offset: .78 },
+          { transform: "scale(1)" }
+        ], { duration: 370, easing: "linear" }).finished.finally(() => { button.style.transform = ""; });
+      };
+      button.addEventListener("pointerdown", press);
+      button.addEventListener("pointerup", release);
+      button.addEventListener("pointercancel", release);
+      button.addEventListener("pointerleave", (event) => {
+        if (event.buttons === 0) release();
+      });
+      button.addEventListener("keydown", (event) => {
+        if (event.key === " " || event.key === "Enter") press(event);
+      });
+      button.addEventListener("keyup", release);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return;
+      if (!morphOverlay.hidden) closeMorph();
+      else if (!insightOverlay.hidden) closeInsight();
+      else if (!imageViewer.hidden) { imageViewer.hidden = true; imageTrigger.focus(); }
+      else if (drawerRoot.classList.contains("active")) closeDrawer();
+    });
+
+    reduceMotion.addEventListener?.("change", () => {
+      updateFocusCards();
+      setActivePoint(activePoint);
+    });
+  </script>
+</body>
+</html>
