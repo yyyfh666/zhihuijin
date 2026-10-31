@@ -60,7 +60,25 @@ function parseArgs(argv) {
 const args = parseArgs(process.argv.slice(2));
 
 if (args.help || args.h) {
-  console.log("用法: node tools/import-backup.mjs --file <backup.json> [--base url] [--email x --password y | --token jwt] [--dry-run]");
+  console.log(`用法:
+  node tools/import-backup.mjs --file <备份.txt 或 .json> [选项]
+
+必填:
+  --file <path>        页面「导出备份」得到的文件（文字版 .txt 或旧版 .json）
+
+选填:
+  --base <url>         API 根地址，默认 https://nlxroaosaoyi.sealoshzh.site/api/v1
+  --email <mail>       登录用邮箱（登录失败会自动注册）
+  --password <pwd>     密码
+  --token <jwt>        已有 accessToken 时直接用它
+  --origin <url>       请求 Origin（后端 CORS 只认 5173，本机跑可不带）
+  --dry-run            只打印请求，不联网
+  --tasks-out <path>   计划导出位置，默认 ./tasks-<日期>.json
+  --json               以 JSON 输出结果
+
+示例:
+  node tools/import-backup.mjs --file zhihuijin-backup-2026-10-31.txt \\
+       --email me@example.com --password 'Passw0rd!' --dry-run`);
   process.exit(0);
 }
 
