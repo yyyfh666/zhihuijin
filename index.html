@@ -1246,7 +1246,7 @@
             <div class="field-row">
               <div class="field">
                 <label for="monthlyBudget">每月生活费</label>
-                <input id="monthlyBudget" type="number" inputmode="decimal" value="1500" placeholder="1500">
+                <input id="monthlyBudget" type="number" inputmode="decimal" value="1500" placeholder="1500" max="5000">
               </div>
               <div class="field">
                 <label for="fixedAmount">固定支出/月</label>
@@ -1357,7 +1357,11 @@
           </div>
           <div class="progress-ring" id="todayProgress"><span>0/0</span></div>
         </div>
-        <div class="today-note">这些任务来自你的余额预测、计划事件和安全学习进度，最多保留三项。</div>
+        <div class="today-note">写下你今天真正要做的事。计划由你自己定，系统只负责把它记下来。</div>
+        <div class="task-composer">
+          <input id="taskInput" placeholder="写一条今天的计划，比如：把兼职群退了" maxlength="40" autocomplete="off">
+          <button class="primary" id="taskAdd" type="button">添加</button>
+        </div>
         <div class="task-list today-list" id="todayTasks"></div>
       </section>
 
@@ -1391,15 +1395,6 @@
         <h1 class="page-title">我的</h1>
         <p class="page-sub">本地预览版不会上传你的生活费数据。</p>
         <div class="profile-summary" id="profileSummary"></div>
-        <div class="profile-section">
-          <h2>演示状态</h2>
-          <div class="demo-row">
-            <button class="demo-button" data-demo="sunny">晴天</button>
-            <button class="demo-button" data-demo="cloudy">多云</button>
-            <button class="demo-button" data-demo="rain">阵雨</button>
-            <button class="demo-button" data-demo="storm">暴雨</button>
-          </div>
-        </div>
         <div class="profile-section">
           <h2>交互动效</h2>
           <a class="setting motion-link" href="motion.html">
@@ -1476,7 +1471,7 @@
       <h2>这笔钱，会占掉月底的哪一块？</h2>
       <div class="pause-form" style="display:grid;gap:12px;margin-top:16px">
         <label class="field"><span>想买什么</span><input id="pauseName" placeholder="比如：耳机"></label>
-        <label class="field"><span>金额</span><input id="pauseAmount" type="number" inputmode="decimal" placeholder="299"></label>
+        <label class="field"><span>金额</span><input id="pauseAmount" type="number" inputmode="decimal" placeholder="299" max="5000"></label>
         <button class="primary wide" id="calculatePause">看看影响</button>
       </div>
       <div id="pauseResult"></div>
@@ -1513,7 +1508,8 @@
       </div>
       <div class="record-form">
         <label id="eventNameField" hidden>事件名称<input id="recordName" placeholder="比如：考试周聚餐"></label>
-        <label>金额<input id="recordAmount" type="number" inputmode="decimal" placeholder="18"></label>
+        <label>金额<input id="recordAmount" type="number" inputmode="decimal" placeholder="18" max="5000"></label>
+        <p class="field-hint">单笔上限 ¥5000；更大的金额请分开记。</p>
         <label>分类<select id="recordCategory"><option value="食堂">食堂</option><option value="交通">交通</option><option value="学习">学习</option><option value="网购">网购</option><option value="娱乐">娱乐</option><option value="日用">日用</option><option value="其他">其他</option></select></label>
         <div class="date-field" id="dateField">
           <span>日期</span>
@@ -1569,8 +1565,23 @@
 
   <div class="image-expand-overlay" id="imageExpandOverlay" hidden>
     <div class="image-expand-stage" id="imageExpandStage">
-      <img src="assets/risk-radar.svg" alt="校园金融安全雷达大图">
-      <button class="image-expand-close" id="closeImageExpand" type="button" aria-label="关闭图片">×</button>
+      <div class="radar-detail-body">
+        <div class="radar-detail-media">
+          <img src="assets/risk-radar.svg" alt="校园金融安全雷达大图">
+          <button class="image-expand-close" id="closeImageExpand" type="button" aria-label="关闭">×</button>
+        </div>
+        <div class="radar-detail-copy">
+          <p class="eyebrow">SAFETY SIGNAL · 04</p>
+          <h2>先停下来核实</h2>
+          <p class="lead">转账之前，让「对方是谁、钱去哪、凭证在哪」三个问题都有答案。答不上来，就先不做。</p>
+          <ol class="radar-detail-steps">
+            <li><b>不转账</b><span>任何要求先付款、先充值、先交押金的，都先停。</span></li>
+            <li><b>不给验证码</b><span>验证码、屏幕共享、远程控制，一律不提供。</span></li>
+            <li><b>保存证据</b><span>截图、录音、转账记录，然后走官方渠道核实并报案。</span></li>
+          </ol>
+          <button class="primary wide" id="radarDetailClose" type="button">知道了</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1578,6 +1589,7 @@
 
   <script>
     const TODAY = "2026-10-21";
+    const MAX_AMOUNT_CENTS = 500000; // 单笔金额上限 ¥5000，超出按上限计
     const STORAGE_KEY = "zhihuijin-html-preview-v1";
     const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
     const CATEGORIES = ["全部", "校园金融安全", "消费与借贷", "基础素养", "求助处置"];
@@ -2474,8 +2486,12 @@
       byId("riskStrip").innerHTML = `<span>☼</span><div><strong>${forecast.riskSource}是当前最大风险</strong>${forecast.confidence === "估算" ? "目前记录还不多，记账3天后预测会更准。" : "预测基于最近14天的消费节奏，不是收益承诺。"}</div>`;
       drawChart(forecast);
       const tasks = ensureTasks();
-      byId("homeTasks").innerHTML = tasks.slice(0, 2).map((task) => taskMarkup(task, false)).join("");
+      byId("homeTasks").innerHTML = tasks.length
+        ? tasks.filter((task) => task.status !== "done").concat(tasks.filter((task) => task.status === "done")).slice(0, 2).map((task) => taskMarkup(task, false)).join("")
+        : `<button class="empty task-empty" id="homeTaskEmpty" type="button">今天还没有计划，点这里写一条。</button>`;
       prepareStagger(byId("homeTasks"), ".task");
+      const homeEmpty = byId("homeTaskEmpty");
+      if (homeEmpty) homeEmpty.onclick = () => { showScreen("today"); setTimeout(() => byId("taskInput")?.focus(), 260); };
       const card = recommendedCard();
       byId("homeSafety").innerHTML = `<div class="safety-mini-icon">◇</div><div class="safety-mini-copy"><strong>${escapeHtml(card.title)}</strong><span>${escapeHtml(card.category)} · ${escapeHtml(card.level)}</span></div>`;
       byId("homeSafety").onclick = () => openCard(card.id, byId("homeSafety"));
@@ -2626,45 +2642,42 @@
       });
     }
     function ensureTasks() {
-      const existing = state.tasks[TODAY] || [];
-      const done = existing.filter((task) => task.status === "done");
-      const forecast = calculateForecast();
-      const candidates = [];
-      if (["rain", "storm"].includes(forecast.weather)) {
-        candidates.push({ id: `task-${TODAY}-limit`, type: "limit", title: "设置今天的消费上限", source: "钱包天气", action: "pause" });
-      }
-      const nextEvent = state.events.find((event) => daysBetween(TODAY, event.date) <= 7 && daysBetween(TODAY, event.date) >= 0);
-      if (nextEvent) {
-        candidates.push({ id: `task-${TODAY}-event`, type: "event", title: `检查「${nextEvent.name}」的预算`, source: "计划事件", action: "home" });
-      }
-      const unread = cards.find((card) => !state.learning.includes(card.id));
-      if (unread) {
-        candidates.push({ id: `task-${TODAY}-card-${unread.id}`, type: "safety", title: "完成一张金融安全卡", source: unread.category, action: "card", target: unread.id });
-      }
-      if (!state.expenses.some((expense) => expense.date === TODAY)) {
-        candidates.push({ id: `task-${TODAY}-record`, type: "record", title: "记录今天的第一笔支出", source: "记账", action: "record" });
-      }
-      if (!candidates.length) candidates.push({ id: `task-${TODAY}-review`, type: "review", title: "查看本周余额", source: "复盘", action: "home" });
-      const merged = [...done];
-      candidates.forEach((task) => {
-        if (
-          merged.length < 3 &&
-          !merged.some((item) => item.id === task.id || item.type === task.type)
-        ) {
-          merged.push({ ...task, status: "todo" });
-        }
-      });
-      state.tasks[TODAY] = merged.slice(0, 3);
-      saveState();
+      if (!Array.isArray(state.tasks[TODAY])) state.tasks[TODAY] = [];
       return state.tasks[TODAY];
     }
+    function addTask(title) {
+      const text = String(title || "").trim().slice(0, 40);
+      if (!text) return false;
+      if (!Array.isArray(state.tasks[TODAY])) state.tasks[TODAY] = [];
+      const list = state.tasks[TODAY];
+      if (list.some((task) => task.title === text)) return false;
+      list.push({
+        id: `task-${TODAY}-${Date.now().toString(36)}`,
+        type: "user",
+        title: text,
+        source: "我的计划",
+        action: "none",
+        status: "todo"
+      });
+      saveState();
+      return true;
+    }
+    function removeTask(id) {
+      const list = state.tasks[TODAY] || [];
+      const next = list.filter((task) => task.id !== id);
+      if (next.length === list.length) return false;
+      state.tasks[TODAY] = next;
+      saveState();
+      return true;
+    }
     function taskMarkup(task, showActions = false) {
+      const del = showActions ? `<button class="mini-del" data-task-del="${task.id}" type="button" aria-label="删除这条计划">×</button>` : "";
       return `<div class="task ${task.status === "done" ? "done" : ""}">
         <button class="task-main" data-task="${task.id}">
           <span class="task-check">${task.status === "done" ? "✓" : ""}</span>
           <span><span class="task-title">${escapeHtml(task.title)}</span><span class="task-source">${escapeHtml(task.source)}</span></span>
         </button>
-        ${showActions ? `<span class="task-actions"><button class="mini-action" data-task-done="${task.id}">${task.status === "done" ? "已完成" : "完成"}</button></span>` : ""}
+        ${showActions ? `<span class="task-actions"><button class="mini-action" data-task-done="${task.id}">${task.status === "done" ? "已完成" : "完成"}</button></span>${del}` : ""}
       </div>`;
     }
     function bindTaskActions(container) {
@@ -2685,6 +2698,12 @@
           renderToday();
         });
       });
+      container.querySelectorAll("[data-task-del]").forEach((element) => {
+        element.addEventListener("click", (event) => {
+          event.stopPropagation();
+          if (removeTask(element.dataset.taskDel)) { renderToday(); renderHome(); }
+        });
+      });
     }
     function openTask(task) {
       if (task.action === "record") return openRecord("expense");
@@ -2699,7 +2718,7 @@
       byId("todayDate").textContent = formatLongDay(TODAY);
       byId("todayProgress").style.setProperty("--progress", `${tasks.length ? (done / tasks.length) * 100 : 0}%`);
       byId("todayProgress").querySelector("span").textContent = `${done}/${tasks.length}`;
-      byId("todayTasks").innerHTML = tasks.length ? tasks.map((task) => taskMarkup(task, true)).join("") : `<div class="empty">今天没有待办，先记一笔支出，让预测更准确。</div>`;
+      byId("todayTasks").innerHTML = tasks.length ? tasks.map((task) => taskMarkup(task, true)).join("") : `<div class="empty">还没有计划。在上面写一条你今天真正想做的事，比如「把兼职群退了」。</div>`;
       bindTaskActions(byId("todayTasks"));
       prepareStagger(byId("todayTasks"), ".task");
     }
@@ -2737,8 +2756,10 @@
       const start = source.getBoundingClientRect();
       overlay.hidden = false;
       const end = stage.getBoundingClientRect();
+      // 兜底：任何动画异常都不允许让面板停在透明状态
+      stage.style.opacity = "1";
+      setTimeout(() => { stage.style.opacity = "1"; }, 700);
       if (!motionEnabled()) {
-        stage.style.opacity = "1";
         byId("closeImageExpand").focus();
         return;
       }
@@ -2747,10 +2768,9 @@
       clone.style.cssText = `position:fixed;z-index:72;left:${start.left}px;top:${start.top}px;width:${start.width}px;height:${start.height}px;margin:0;border-radius:20px;pointer-events:none;`;
       document.body.appendChild(clone);
       source.style.visibility = "hidden";
-      stage.style.opacity = "0";
       clone.animate([
-        { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: "20px" },
-        { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, borderRadius: "22px" }
+        { left: `${start.left}px`, top: `${start.top}px`, width: `${start.width}px`, height: `${start.height}px`, borderRadius: "20px", opacity: 1 },
+        { left: `${end.left}px`, top: `${end.top}px`, width: `${end.width}px`, height: `${end.height}px`, borderRadius: "22px", opacity: 0 }
       ], { duration: 450, easing: "cubic-bezier(.16,1,.3,1)" }).finished.finally(() => {
         clone.remove();
         source.style.visibility = "";
@@ -2984,7 +3004,9 @@
     }
     function saveRecord() {
       try {
-        const amountCents = parseMoney(byId("recordAmount").value);
+        const rawCents = parseMoney(byId("recordAmount").value);
+        const amountCents = Math.min(rawCents, MAX_AMOUNT_CENTS);
+        if (rawCents > MAX_AMOUNT_CENTS) showToast("单笔上限 ¥5000，已按 ¥5000 记录");
         const date = byId("recordDate").value || TODAY;
         if (recordKind === "expense") {
           state.expenses.unshift({ id: `expense-${Date.now()}`, amountCents, category: byId("recordCategory").value, date });
@@ -3004,28 +3026,84 @@
       }
     }
     function openPause() {
+      stopPauseTimers();
       byId("pauseResult").innerHTML = "";
       byId("pauseName").value = "";
       byId("pauseAmount").value = "";
       openOverlay("pauseView");
     }
+    let pauseTimer = 0;
+    let pauseTick = 0;
+    function stopPauseTimers() {
+      if (pauseTimer) { clearInterval(pauseTimer); pauseTimer = 0; }
+      if (pauseTick) { clearInterval(pauseTick); pauseTick = 0; }
+    }
+    function formatClock(ms) {
+      const total = Math.max(0, Math.round(ms / 1000));
+      const h = String(Math.floor(total / 3600)).padStart(2, "0");
+      const m = String(Math.floor((total % 3600) / 60)).padStart(2, "0");
+      const s = String(total % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
     function calculatePause() {
-      try {
-        const amount = parseMoney(byId("pauseAmount").value);
+      stopPauseTimers();
+      const raw = parseMoney(byId("pauseAmount").value);
+      if (!raw || raw <= 0) { showToast("先填一个金额，比如 99"); return; }
+      const amount = Math.min(raw, MAX_AMOUNT_CENTS);
+      if (raw > MAX_AMOUNT_CENTS) showToast("单笔上限 ¥5000，已按 ¥5000 计算");
+      const name = byId("pauseName").value.trim() || "这笔想买的东西";
+      let left = 30;
+      const finish = () => {
+        stopPauseTimers();
         const forecast = calculateForecast();
         const ratio = state.period.currentBalanceCents > 0 ? amount / state.period.currentBalanceCents : 1;
-        const after = forecast.projected - amount;
+        const after = forecast ? forecast.projected - amount : -amount;
         const high = ratio >= .5 || after < 0;
         byId("pauseResult").innerHTML = `<div class="pause-result ${high ? "high" : ""}"><strong>${high ? "高影响，建议先暂停" : "有影响，但可以先调整"}</strong><br>这笔消费占当前余额约 ${Math.round(ratio * 100)}%，会让预计到账前余额变成 ${formatMoney(after)}。<br><button class="primary" id="startCooling" style="margin-top:12px">开启24小时冷静期</button></div>`;
         byId("startCooling").onclick = () => {
-          state.pauses.unshift({ id: `pause-${Date.now()}`, name: byId("pauseName").value || "一笔想买的东西", amountCents: amount, endsAt: new Date(Date.now() + 86400000).toISOString() });
+          const endsAt = Date.now() + 86400000;
+          state.pauses.unshift({ id: `pause-${Date.now()}`, name, amountCents: amount, endsAt: new Date(endsAt).toISOString() });
           saveState();
-          closeOverlay("pauseView");
-          showToast("已开始冷静期，关闭页面后记录仍保留");
+          renderPauseCooling(name, amount, endsAt);
+          showToast("已开始冷静期，记录已保存");
         };
-      } catch (error) {
-        showToast(error.message);
-      }
+      };
+      const drawCount = () => {
+        byId("pauseResult").innerHTML = `<div class="pause-count">
+          <div class="pause-count__ring" style="--pause-deg:${((30 - left) / 30) * 360}deg"><strong id="pauseCountNum">${left}</strong><small>秒</small></div>
+          <p>先停 30 秒 —— 想清楚这笔钱会不会挤掉月底的哪一块。</p>
+          <button class="secondary" id="pauseSkip" type="button">跳过等待，直接看结果</button>
+        </div>`;
+        byId("pauseSkip").onclick = finish;
+      };
+      drawCount();
+      pauseTimer = setInterval(() => {
+        left -= 1;
+        if (left <= 0) { finish(); return; }
+        drawCount();
+      }, 1000);
+    }
+    function renderPauseCooling(name, amountCents, endsAt) {
+      stopPauseTimers();
+      const tick = () => {
+        const left = endsAt - Date.now();
+        const node = byId("pauseCoolingLeft");
+        if (node) node.textContent = formatClock(left);
+        if (left <= 0) {
+          stopPauseTimers();
+          const done = byId("pauseCoolingLeft");
+          if (done) done.textContent = "可以决定了";
+        }
+      };
+      byId("pauseResult").innerHTML = `<div class="pause-result cooling">
+        <strong>冷静期已开启</strong>
+        <p>「${escapeHtml(name)}」${formatMoney(amountCents)} 已进入 24 小时冷静期。到时间后再决定要不要买。</p>
+        <div class="pause-cooling-clock"><small>剩余</small><strong id="pauseCoolingLeft">23:59:59</strong></div>
+        <button class="secondary" id="pauseBack" type="button" style="margin-top:12px">返回</button>
+      </div>`;
+      byId("pauseBack").onclick = () => closeOverlay("pauseView");
+      tick();
+      pauseTick = setInterval(tick, 1000);
     }
     function renderProfile() {
       const forecast = calculateForecast();
@@ -3167,6 +3245,24 @@
     });
     byId("settlementBar").onclick = () => toggleSettlement();
     byId("closeContextTip").onclick = closeContextTip;
+    function submitTask() {
+      const input = byId("taskInput");
+      if (!input) return;
+      const raw = input.value.trim();
+      if (!raw) { input.focus(); return; }
+      if (addTask(raw)) {
+        input.value = "";
+        renderToday();
+        renderHome();
+        showToast("已加入今日计划");
+      } else {
+        showToast("这条计划已经在列表里了");
+      }
+    }
+    byId("taskAdd").onclick = submitTask;
+    byId("taskInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") { event.preventDefault(); submitTask(); }
+    });
     byId("dateTrigger").addEventListener("click", (event) => {
       event.stopPropagation();
       setDatePicker(!byId("dateField").classList.contains("open"));
@@ -3325,6 +3421,7 @@
     });
 
     byId("radarVisual").addEventListener("click", openRadarImage);
+    byId("radarDetailClose").addEventListener("click", () => { byId("imageExpandOverlay").hidden = true; });
     byId("closeImageExpand").addEventListener("click", () => {
       byId("imageExpandOverlay").hidden = true;
       byId("radarVisual").focus();

@@ -915,6 +915,7 @@
     var paths = strokePaths(svg);
     if (!paths.length) return;
     svg.dataset.vibeDrawn = "1";
+    svg.dataset.vibeSig = (paths[0] && paths[0].getAttribute("d") || "").slice(0, 200);
     if (reduce) {
       traveller(svg, paths[paths.length - 1]);
       return;
@@ -992,16 +993,24 @@
     });
     mo.observe(doc.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
 
-    // 图表数据更新（原页重绘 SVG）时重新描画
+    // 图表数据更新（原页重绘 SVG）时重新描画：按主曲线 d 值做签名，避免自己写的装饰反过来触发自己
     var svgHost = doc.getElementById("chartCard");
     if (svgHost) {
       var re = 0;
       new MutationObserver(function () {
         var svg = doc.getElementById("balanceChart");
         if (!svg) return;
-        if (svg.dataset.vibeDrawn === "1" && !svg.querySelector(".vibe-chart-dot")) return;
+        var main = svg.querySelector("path:not(.vibe-chart-pulse)");
+        var sig = main ? (main.getAttribute("d") || "").slice(0, 200) : "";
+        if (svg.dataset.vibeSig === sig) return;
         clearTimeout(re);
-        re = setTimeout(function () { reset(); drawOnce(); }, 180);
+        re = setTimeout(function () {
+          var node = doc.getElementById("balanceChart");
+          if (!node) return;
+          node.dataset.vibeSig = sig;
+          reset();
+          drawOnce();
+        }, 180);
       }).observe(svgHost, { subtree: true, childList: true });
     }
   }
@@ -1022,10 +1031,15 @@
   function build() {
     var svg = doc.getElementById("balanceChart");
     if (!svg) return;
-    var stray = svg.querySelector(".vibe-chart-dot");
-    if (stray) stray.remove();
     if (reduce) return;
-    if (svg.querySelector(".vibe-chart-pulse")) return;
+    var main = svg.querySelector("path:not(.vibe-chart-pulse)");
+    var sig = main ? (main.getAttribute("d") || "").slice(0, 200) : "";
+    var existing = svg.querySelector(".vibe-chart-pulse");
+    if (existing) {
+      if (svg.dataset.vibePulseSig === sig) return;
+      existing.remove();
+    }
+    svg.dataset.vibePulseSig = sig;
 
     var list = svg.querySelectorAll("path");
     var target = null;
@@ -1660,4 +1674,47 @@
 
   if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot);
   else boot();
+})();
+
+/* ============================================================================
+   28 收尾修补：日历滚动到可视区 / 金额上限纠正 / 暂停面板复位
+   ========================================================================== */
+(function () {
+  "use strict";
+  var doc = document;
+
+  function revealCalendar() {
+    var field = doc.getElementById("dateField");
+    if (!field || !field.classList.contains("open")) return;
+    var pop = doc.getElementById("calendarPopover");
+    if (!pop) return;
+    try { pop.scrollIntoView({ block: "center", behavior: "smooth" }); }
+    catch (err) { pop.scrollIntoView(false); }
+  }
+
+  doc.addEventListener("click", function (event) {
+    var target = event.target;
+    if (!target || !target.closest || !target.closest("#dateTrigger")) return;
+    setTimeout(revealCalendar, 90);
+    setTimeout(revealCalendar, 430);
+  }, true);
+
+  function clampAmount(el) {
+    if (!el || el.tagName !== "INPUT" || el.type !== "number") return;
+    var max = Number(el.getAttribute("max"));
+    if (!max) return;
+    var value = Number(el.value);
+    if (Number.isFinite(value) && value > max) el.value = String(max);
+  }
+  doc.addEventListener("change", function (event) { clampAmount(event.target); }, true);
+  doc.addEventListener("blur", function (event) { clampAmount(event.target); }, true);
+
+  doc.addEventListener("click", function (event) {
+    var target = event.target;
+    if (!target || !target.closest) return;
+    if (target.closest('[data-drawer-go="pause"]') || target.closest('[data-action="pause"]')) {
+      var box = doc.getElementById("pauseResult");
+      if (box) box.innerHTML = "";
+    }
+  }, true);
 })();
