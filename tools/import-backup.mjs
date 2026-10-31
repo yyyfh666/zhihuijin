@@ -12,7 +12,7 @@
  *        --email me@example.com --password 'Passw0rd!'
  *
  * 常用参数：
- *   --file <path>        备份文件（必填）
+ *   --file <path>        备份文件（必填；支持文字版 .txt 与旧版 .json）
  *   --base <url>         API 根地址，默认 https://nlxroaosaoyi.sealoshzh.site/api/v1
  *   --email/--password   没有 token 时用它注册/登录
  *   --token <jwt>        已有 accessToken 时直接用它，跳过登录
@@ -299,9 +299,18 @@ async function exportTasks(backup) {
     fail(`读不到文件：${error.message}`, 2);
   }
 
+  // 支持两种导出：可读文字版 .txt（内嵌 <<<ZHJ-BACKUP 段）与旧的 .json
+  let jsonText = raw;
+  const block = raw.match(/<<<ZHJ-BACKUP\s*([\s\S]*?)\s*ZHJ-BACKUP>>>/);
+  if (block) {
+    jsonText = block[1];
+  } else if (!raw.trim().startsWith("{") && !raw.trim().startsWith("[")) {
+    fail("这个文件里没有可导入的数据。请用页面「导出备份」生成的文件（.txt 或 .json）", 2);
+  }
+
   let backup;
   try {
-    backup = normalize(JSON.parse(raw));
+    backup = normalize(JSON.parse(jsonText));
   } catch (error) {
     fail(`备份文件有问题：${error.message}`, 2);
   }
