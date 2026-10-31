@@ -6,3 +6,7 @@ Thumbs.db
 _*.html
 .env
 .env.*
+
+# 临时探针
+_*.html
+tools/_*.mjs
