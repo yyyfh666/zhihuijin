@@ -3169,12 +3169,102 @@
     }
 
     function backupFileName() {
-      return `zhihuijin-backup-${TODAY}.json`;
+      return `zhihuijin-backup-${TODAY}.txt`;
     }
 
+    const PROFILE_LABEL = { conservative: "保守型：先留余地", balanced: "均衡型：按节奏花", flexible: "弹性型：容易临时消费" };
+
+    function padText(text, width) {
+      const value = String(text);
+      return value.length >= width ? value : value + " ".repeat(width - value.length);
+    }
+
+    // 生成「给人读」的文字版备份；末尾内嵌一段 JSON 供一键恢复
+    function buildBackupText(backup) {
+      const data = backup.data || {};
+      const profile = data.profile || {};
+      const period = data.period || {};
+      const lines = [];
+      const when = new Date(backup.exportedAt);
+      const stamp = `${when.getFullYear()}年${when.getMonth() + 1}月${when.getDate()}日 ${String(when.getHours()).padStart(2, "0")}:${String(when.getMinutes()).padStart(2, "0")}`;
+
+      lines.push("智汇金 · 钱包天气预报");
+      lines.push("数据备份");
+      lines.push("=".repeat(34));
+      lines.push("");
+      lines.push(`导出时间：${stamp}`);
+      lines.push(`导出位置：${backup.exportedFrom || location.origin}`);
+      lines.push("");
+
+      lines.push("【预算与余额】");
+      lines.push(`  ${padText("每月生活费", 12)}${formatMoney(profile.monthlyBudgetCents || 0)}`);
+      const fixedTotal = (profile.fixedExpensesCents || []).reduce((sum, item) => sum + Number(item.amountCents || 0), 0);
+      lines.push(`  ${padText("固定支出/月", 12)}${formatMoney(fixedTotal)}`);
+      lines.push(`  ${padText("当前余额", 12)}${formatMoney(period.currentBalanceCents || 0)}`);
+      if (profile.nextIncomeDate) lines.push(`  ${padText("下次到账日", 12)}${profile.nextIncomeDate}`);
+      lines.push(`  ${padText("消费习惯", 12)}${PROFILE_LABEL[profile.spendingProfile] || "未设置"}`);
+      lines.push("");
+
+      const expenses = (data.expenses || []).slice().sort((a, b) => String(b.date).localeCompare(String(a.date)));
+      const total = expenses.reduce((sum, item) => sum + Number(item.amountCents || 0), 0);
+      lines.push(`【支出记录】共 ${expenses.length} 笔，合计 ${formatMoney(total)}`);
+      if (!expenses.length) {
+        lines.push("  （还没有记录）");
+      } else {
+        expenses.forEach((item) => {
+          const note = item.note ? `  ${item.note}` : "";
+          lines.push(`  ${String(item.date)}  ${padText(item.category || "未分类", 8)}${padText(formatMoney(item.amountCents || 0), 10)}${note}`);
+        });
+      }
+      lines.push("");
+
+      const taskDates = Object.keys(data.tasks || {}).sort();
+      const taskCount = taskDates.reduce((sum, date) => sum + (data.tasks[date] || []).length, 0);
+      lines.push(`【今日计划】共 ${taskCount} 条`);
+      if (!taskCount) {
+        lines.push("  （还没有计划）");
+      } else {
+        taskDates.forEach((date) => {
+          const list = data.tasks[date] || [];
+          if (!list.length) return;
+          lines.push(`  ${date}`);
+          list.forEach((task, index) => {
+            lines.push(`    ${index + 1}. ${task.title}　${task.status === "done" ? "✓ 已完成" : "· 未完成"}`);
+          });
+        });
+      }
+      lines.push("");
+
+      const pauses = data.pauses || [];
+      lines.push(`【冷静期】共 ${pauses.length} 个`);
+      if (!pauses.length) {
+        lines.push("  （没有进行中的冷静期）");
+      } else {
+        pauses.forEach((item) => {
+          const left = Math.max(0, new Date(item.endsAt).getTime() - Date.now());
+          const hours = Math.floor(left / 3600000);
+          const minutes = Math.floor((left % 3600000) / 60000);
+          lines.push(`  ${padText(item.name || "未命名", 10)}${padText(formatMoney(item.amountCents || 0), 10)}剩余 ${hours} 小时 ${minutes} 分`);
+        });
+      }
+      lines.push("");
+
+      const learning = data.learning || [];
+      lines.push("【学习进度】");
+      lines.push(`  已读卡片 ${learning.length} 张`);
+      lines.push("");
+      lines.push("-".repeat(34));
+      lines.push("下面这段给「导入备份」用，请不要修改或删除：");
+      lines.push("");
+      lines.push("<<<ZHJ-BACKUP");
+      lines.push(JSON.stringify({ schemaVersion: backup.schemaVersion, exportedAt: backup.exportedAt, counts: backup.counts, data }));
+      lines.push("ZHJ-BACKUP>>>");
+      lines.push("");
+      return lines.join("\r\n");
+    }
     function openBackupPanel() {
       const backup = buildBackup();
-      const json = JSON.stringify(backup, null, 2);
+      const json = buildBackupText(backup);
       const name = backupFileName();
       let panel = document.getElementById("backupPanel");
       if (!panel) {
@@ -3184,10 +3274,10 @@
         panel.innerHTML = `
           <div class="vibe-backup__card" role="dialog" aria-modal="true" aria-label="导出备份">
             <h2>导出备份</h2>
-            <p class="vibe-backup__hint">下面就是完整备份。点「下载 .json」保存到本地；如果手机浏览器拦了下载，点「复制」把内容存进记事本，文件名建议 <b data-backup="name"></b>。</p>
+            <p class="vibe-backup__hint">下面是<b>可以直接读的文字版备份</b>：预算、支出、计划都在里面。点「下载文件」保存；如果手机浏览器拦了下载，点「复制内容」存进记事本，文件名建议 <b data-backup="name"></b>。文件末尾那段是给「导入」用的，别改它。</p>
             <textarea class="vibe-backup__text" readonly spellcheck="false" aria-label="备份文件内容"></textarea>
             <div class="vibe-backup__acts">
-              <button class="primary" data-backup="download">下载 .json</button>
+              <button class="primary" data-backup="download">下载文件</button>
               <button class="ghost" data-backup="copy">复制内容</button>
               <button class="ghost" data-backup="share">系统分享</button>
               <button class="ghost" data-backup="close">关闭</button>
@@ -3220,7 +3310,7 @@
     function downloadBackup(panel) {
       const json = panel.querySelector(".vibe-backup__text").value;
       const name = panel.dataset.filename || backupFileName();
-      const blob = new Blob([json], { type: "application/json;charset=utf-8" });
+      const blob = new Blob([json], { type: "text/plain;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
@@ -3259,7 +3349,7 @@
       const json = panel.querySelector(".vibe-backup__text").value;
       const name = panel.dataset.filename || backupFileName();
       let file = null;
-      try { file = new File([json], name, { type: "application/json" }); } catch (error) { file = null; }
+      try { file = new File([json], name, { type: "text/plain" }); } catch (error) { file = null; }
       if (!file || !navigator.canShare || !navigator.canShare({ files: [file] })) {
         setBackupState(panel, "这个浏览器不支持系统分享，请用「下载 .json」或「复制内容」。", "bad");
         return;
@@ -3305,20 +3395,35 @@
       ].join(" · ");
     }
 
+    // 兼容：文字版（含 <<<ZHJ-BACKUP 块）、纯 JSON、以及旧版 schemaVersion 1/2
+    function parseBackupFile(raw) {
+      const text = String(raw || "");
+      const block = text.match(/<<<ZHJ-BACKUP\s*([\s\S]*?)\s*ZHJ-BACKUP>>>/);
+      if (block) {
+        try {
+          return JSON.parse(block[1]);
+        } catch (error) {
+          throw new Error("备份里的数据段损坏了，请重新导出一次");
+        }
+      }
+      const trimmed = text.trim();
+      if (!trimmed) throw new Error("这个文件是空的");
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          return JSON.parse(trimmed);
+        } catch (error) {
+          throw new Error("这个文件不是合法的 JSON，也不是导出的备份文件");
+        }
+      }
+      throw new Error("这个文件里找不到可导入的数据，请选择「导出备份」生成的文件");
+    }
     function importData(file) {
       const reader = new FileReader();
       reader.onerror = () => showToast("读不到这个文件，换一个再试");
       reader.onload = () => {
         let payload;
         try {
-          let parsed;
-          try {
-            parsed = JSON.parse(reader.result);
-          } catch (error) {
-            showToast("这个文件不是 JSON，请选择导出时保存的 .json 文件");
-            return;
-          }
-          payload = normalizeBackup(parsed);
+          payload = normalizeBackup(parseBackupFile(reader.result));
         } catch (error) {
           showToast(error.message);
           return;
