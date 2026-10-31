@@ -1255,7 +1255,7 @@
             </div>
             <div class="field">
               <label for="nextIncome">下次到账日</label>
-              <input id="nextIncome" type="date" value="2026-11-20">
+              <input id="nextIncome" type="date">
             </div>
             <div class="field">
               <label for="spendingProfile">你的消费习惯</label>
@@ -1516,7 +1516,7 @@
           <button class="date-trigger" id="dateTrigger" type="button" aria-expanded="false" aria-controls="calendarPopover">
             <span id="recordDateLabel">10月21日</span><span>展开</span>
           </button>
-          <input id="recordDate" type="date" value="2026-10-21" hidden>
+          <input id="recordDate" type="date" hidden>
           <div class="calendar-popover" id="calendarPopover">
             <div class="calendar-head">
               <button type="button" id="calendarPrev" aria-label="上个月">‹</button>
@@ -1588,7 +1588,18 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
   <script>
-    const TODAY = "2026-10-21";
+    /* 「今天」跟随真实日期：打开页面即取系统当地日期（YYYY-MM-DD） */
+    const TODAY = (() => {
+      const d = new Date();
+      const p = (v) => String(v).padStart(2, "0");
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    })();
+    const plusDays = (n) => {
+      const d = new Date(`${TODAY}T00:00:00`);
+      d.setDate(d.getDate() + n);
+      const p = (v) => String(v).padStart(2, "0");
+      return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+    };
     const MAX_AMOUNT_CENTS = 500000; // 单笔金额上限 ¥5000，超出按上限计
     const STORAGE_KEY = "zhihuijin-html-preview-v1";
     const WEEKDAYS = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
@@ -2965,6 +2976,8 @@
       byId("recordDateLabel").textContent = formatDay(TODAY);
       byId("recordAmount").value = "";
       byId("recordName").value = "";
+      const incomeInput = byId("nextIncome");
+      if (incomeInput && (!incomeInput.value || incomeInput.value <= TODAY)) incomeInput.value = plusDays(30);
       setDatePicker(false);
       byId("appShell").classList.add("is-sheet-open");
       setRecordKind(kind);
@@ -3132,15 +3145,15 @@
     function loadDemo(kind) {
       const profiles = {
         sunny: { profile: "conservative", balance: 150000, fixed: 20000, events: [] },
-        cloudy: { profile: "balanced", balance: 150000, fixed: 20000, events: [["考试周聚餐", 20000, "2026-10-29"]] },
-        rain: { profile: "balanced", balance: 150000, fixed: 20000, events: [["社团旅行", 30000, "2026-10-28"]] },
-        storm: { profile: "balanced", balance: 100000, fixed: 20000, events: [["社团旅行", 30000, "2026-10-28"]] }
+        cloudy: { profile: "balanced", balance: 150000, fixed: 20000, events: [["考试周聚餐", 20000, plusDays(8)]] },
+        rain: { profile: "balanced", balance: 150000, fixed: 20000, events: [["社团旅行", 30000, plusDays(7)]] },
+        storm: { profile: "balanced", balance: 100000, fixed: 20000, events: [["社团旅行", 30000, plusDays(7)]] }
       };
       const demo = profiles[kind];
       state = makeDefaultState();
       state.profile = {
         monthlyBudgetCents: 150000,
-        nextIncomeDate: "2026-11-20",
+        nextIncomeDate: plusDays(30),
         spendingProfile: demo.profile,
         fixedExpensesCents: [{ name: "固定支出", amountCents: demo.fixed }]
       };
