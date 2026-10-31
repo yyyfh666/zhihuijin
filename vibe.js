@@ -1664,6 +1664,8 @@
   }
 
   function boot() {
+    /* 默认隐藏「接口设置」：只在带 ?dev=1 时挂出来，普通用户看不到 */
+    if (!/[?&]dev=1\b/.test(location.search)) return;
     if (mount()) return;
     var t = 0;
     new MutationObserver(function () {
@@ -1717,4 +1719,226 @@
       if (box) box.innerHTML = "";
     }
   }, true);
+})();
+
+/* ============================================================================
+   30 记账日历：入口挂在「今日」页头，月视图 + 单日明细
+   ========================================================================== */
+(function () {
+  "use strict";
+  var doc = document;
+  var overlay = null;
+  var view = { y: 0, m: 0 };
+  var sel = "";
+  var mounted = false;
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function key(y, m, d) { return y + "-" + pad(m + 1) + "-" + pad(d); }
+  function todayKey() {
+    var t = new Date();
+    return key(t.getFullYear(), t.getMonth(), t.getDate());
+  }
+  /* App 里有一个固定的「今天」（demo 日期常量 TODAY），日历的高亮与默认选中都跟着它走 */
+  function appToday() {
+    try {
+      if (typeof TODAY === "string" && /^\d{4}-\d{2}-\d{2}$/.test(TODAY)) return TODAY;
+    } catch (e) {}
+    return todayKey();
+  }
+  function money(cents) {
+    var n = Math.abs(Number(cents) || 0) / 100;
+    var s = n.toFixed(2);
+    if (s.slice(-3) === ".00") s = s.slice(0, -3);
+    return "¥" + s;
+  }
+  function readState() {
+    try {
+      if (typeof state === "object" && state) return state;
+    } catch (e) {}
+    try {
+      var raw = localStorage.getItem("zhihuijin-html-preview-v1");
+      var parsed = raw ? JSON.parse(raw) : null;
+      return parsed && parsed.data ? parsed.data : parsed || {};
+    } catch (e2) { return {}; }
+  }
+
+  function itemsFor(dateKey, s) {
+    var out = [];
+    (s.expenses || []).forEach(function (e) {
+      if (e && e.date === dateKey) out.push({ kind: "expense", label: e.category || "支出", note: e.note || "", cents: e.amountCents });
+    });
+    (s.events || []).forEach(function (e) {
+      if (e && e.date === dateKey) out.push({ kind: "event", label: e.name || "计划事件", note: "", cents: e.amountCents });
+    });
+    var tasks = s.tasks && s.tasks[dateKey];
+    if (Array.isArray(tasks)) {
+      tasks.forEach(function (t) {
+        var done = t && (t.status === "done" || t.done === true || t.completed === true);
+        out.push({ kind: "task", label: t && t.title ? t.title : "计划", note: done ? "已完成" : "未完成", cents: null, done: done });
+      });
+    }
+    (s.pauses || []).forEach(function (p) {
+      if (!p || !p.endsAt) return;
+      var d = new Date(p.endsAt);
+      if (isNaN(d.getTime())) return;
+      if (key(d.getFullYear(), d.getMonth(), d.getDate()) === dateKey) {
+        out.push({ kind: "pause", label: p.name || "冷静期", note: "到期", cents: p.amountCents });
+      }
+    });
+    return out;
+  }
+
+  function build() {
+    if (!overlay) return;
+    var s = readState();
+    var y = view.y, m = view.m;
+    var first = new Date(y, m, 1);
+    var lead = (first.getDay() + 6) % 7;              /* 周一开头 */
+    var total = new Date(y, m + 1, 0).getDate();
+    var rows = Math.ceil((lead + total) / 7);
+    var tk = appToday();
+    if (!sel) sel = tk;
+
+    var head = '<div class="vibe-cal__head">' +
+      '<button class="vibe-cal__nav" type="button" data-cal="prev" aria-label="上个月">‹</button>' +
+      '<div class="vibe-cal__title">' + y + " 年 " + (m + 1) + " 月</div>" +
+      '<button class="vibe-cal__nav" type="button" data-cal="next" aria-label="下个月">›</button>' +
+      (key(y, m, 1).slice(0, 7) === tk.slice(0, 7) ? "" : '<button class="vibe-cal__back" type="button" data-cal="today">回到本月</button>') +
+      '<button class="vibe-cal__close" type="button" data-cal="close" aria-label="关闭">×</button>' +
+      "</div>";
+
+    var wk = '<div class="vibe-cal__wk">' + ["一", "二", "三", "四", "五", "六", "日"].map(function (x) {
+      return "<span>" + x + "</span>";
+    }).join("") + "</div>";
+
+    var cells = "";
+    for (var i = 0; i < rows * 7; i++) {
+      var dayNum = i - lead + 1;
+      var cur = dayNum >= 1 && dayNum <= total;
+      var dObj = new Date(y, m, dayNum);
+      var k = key(dObj.getFullYear(), dObj.getMonth(), dObj.getDate());
+      var list = cur ? itemsFor(k, s) : [];
+      var dots = "";
+      if (list.some(function (x) { return x.kind === "expense"; })) dots += '<i class="vibe-cal__dot vibe-cal__dot--expense"></i>';
+      if (list.some(function (x) { return x.kind === "event"; })) dots += '<i class="vibe-cal__dot vibe-cal__dot--event"></i>';
+      if (list.some(function (x) { return x.kind === "task"; })) dots += '<i class="vibe-cal__dot vibe-cal__dot--task"></i>';
+      if (list.some(function (x) { return x.kind === "pause"; })) dots += '<i class="vibe-cal__dot vibe-cal__dot--pause"></i>';
+      var cls = "vibe-cal__cell" + (cur ? "" : " is-out") + (k === tk ? " is-today" : "") + (cur && k === sel ? " is-sel" : "");
+      cells += '<button class="' + cls + '" type="button" data-cal-day="' + (cur ? k : "") + '"' + (cur ? "" : ' tabindex="-1"') + ">" +
+        '<span>' + dObj.getDate() + "</span>" +
+        '<span class="vibe-cal__dots">' + dots + "</span>" +
+        "</button>";
+    }
+
+    var day = "";
+    if (sel) {
+      var selList = itemsFor(sel, s);
+      var parts = sel.split("-");
+      var totalOut = 0;
+      var body = selList.map(function (x) {
+        if (x.kind === "expense" || x.kind === "event" || x.kind === "pause") totalOut += Math.abs(Number(x.cents) || 0);
+        var color = x.kind === "expense" ? "#0d6e5b" : x.kind === "event" ? "#c99321" : x.kind === "task" ? "#2f6fd0" : "#8b6fd0";
+        return '<div class="vibe-cal__row"><i style="background:' + color + '"></i><b>' + x.label + "</b>" +
+          (x.note ? "<span>" + x.note + "</span>" : "<span></span>") +
+          (x.cents !== null && x.cents !== undefined ? "<em>" + money(x.cents) + "</em>" : "") + "</div>";
+      }).join("");
+      if (!body) body = '<div class="vibe-cal__empty">这一天还没有记录。</div>';
+      day = '<div class="vibe-cal__day">' +
+        '<div class="vibe-cal__dayhead"><b>' + Number(parts[1]) + " 月 " + Number(parts[2]) + " 日</b><small>" + selList.length + " 条</small></div>" +
+        body +
+        (totalOut > 0 ? '<div class="vibe-cal__sum"><span>当天支出合计</span><b>' + money(totalOut) + "</b></div>" : "") +
+        "</div>";
+    }
+
+    var card = overlay.firstElementChild;
+    card.innerHTML = head + wk + '<div class="vibe-cal__grid">' + cells + "</div>" + day;
+  }
+
+  function open() {
+    if (!overlay) return;
+    var base = appToday().split("-");
+    view.y = Number(base[0]);
+    view.m = Number(base[1]) - 1;
+    sel = appToday();
+    build();
+    overlay.classList.add("is-on");
+    overlay.setAttribute("aria-hidden", "false");
+    doc.documentElement.classList.add("vibe-cal-open");
+  }
+
+  function close() {
+    if (!overlay) return;
+    overlay.classList.remove("is-on");
+    overlay.setAttribute("aria-hidden", "true");
+    doc.documentElement.classList.remove("vibe-cal-open");
+  }
+
+  function shift(delta) {
+    var m = view.m + delta, y = view.y;
+    if (m < 0) { m = 11; y--; }
+    if (m > 11) { m = 0; y++; }
+    view.y = y;
+    view.m = m;
+    build();
+  }
+
+  function ensure() {
+    if (overlay) return;
+    overlay = doc.createElement("div");
+    overlay.className = "vibe-cal";
+    overlay.id = "vibeCal";
+    overlay.setAttribute("aria-hidden", "true");
+    overlay.innerHTML = '<div class="vibe-cal__card" role="dialog" aria-modal="true" aria-label="记账日历"></div>';
+    (doc.getElementById("appShell") || doc.body).appendChild(overlay);
+
+    overlay.addEventListener("click", function (event) {
+      var t = event.target;
+      if (t === overlay) { close(); return; }
+      var act = t.closest("[data-cal]");
+      if (act) {
+        var k = act.dataset.cal;
+        if (k === "close") close();
+        else if (k === "prev") shift(-1);
+        else if (k === "next") shift(1);
+        else if (k === "today") { var b = appToday().split("-"); view.y = Number(b[0]); view.m = Number(b[1]) - 1; sel = appToday(); build(); }
+        return;
+      }
+      var day = t.closest("[data-cal-day]");
+      if (day && day.dataset.calDay) { sel = day.dataset.calDay; build(); }
+    });
+
+    doc.addEventListener("keydown", function (event) {
+      if (event.key === "Escape" && overlay.classList.contains("is-on")) close();
+    }, true);
+  }
+
+  function mountEntry() {
+    var screen = doc.getElementById("todayScreen");
+    if (!screen || screen.querySelector(".vibe-calbtn")) return;
+    var head = screen.querySelector(".today-head");
+    if (!head) return;
+    var btn = doc.createElement("button");
+    btn.type = "button";
+    btn.className = "vibe-calbtn";
+    btn.setAttribute("aria-label", "打开记账日历");
+    btn.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="14.5" rx="3.4"/><path d="M8 3.2v4M16 3.2v4M3.5 10.5h17"/><path d="M8.4 14.6h2M13.6 14.6h2"/></svg><span>日历</span>';
+    btn.addEventListener("click", function (event) { event.preventDefault(); event.stopPropagation(); open(); });
+    var ring = head.querySelector(".progress-ring");
+    if (ring && ring.parentNode === head) head.insertBefore(btn, ring);
+    else head.appendChild(btn);
+  }
+
+  function boot() {
+    ensure();
+    mountEntry();
+    var t = 0;
+    new MutationObserver(function () {
+      clearTimeout(t);
+      t = setTimeout(function () { ensure(); mountEntry(); if (overlay && overlay.classList.contains("is-on")) build(); }, 260);
+    }).observe(doc.body, { subtree: true, childList: true });
+    mounted = true;
+  }
+
+  if (doc.readyState === "loading") doc.addEventListener("DOMContentLoaded", boot);
+  else boot();
 })();

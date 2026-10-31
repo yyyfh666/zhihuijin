@@ -2597,3 +2597,139 @@ button:active, .tab:active, .quick:active { transform: scale(.985); }
 @media (prefers-reduced-motion: reduce) {
   .vibe-backup.open, .vibe-backup__card { animation: none; }
 }
+
+/* ============================================================================
+   30 记账日历：一个月视图，把支出 / 计划事件 / 计划 / 冷静期摊在日历上
+   ========================================================================== */
+.vibe-cal {
+  position: fixed;
+  inset: 0;
+  left: 50%;
+  width: min(100%, 430px);
+  transform: translateX(-50%);
+  z-index: 60;
+  display: none;
+  padding: 14px;
+  background: rgba(6, 26, 22, 0.42);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+}
+.vibe-cal.is-on { display: grid; place-items: center; animation: vibe-cal-fade 0.24s var(--ease-out); }
+@keyframes vibe-cal-fade { from { opacity: 0 } to { opacity: 1 } }
+
+.vibe-cal__card {
+  width: 100%;
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+  padding: 16px 16px 18px;
+  border-radius: 24px;
+  background: linear-gradient(158deg, rgba(255, 255, 255, 0.96), rgba(234, 245, 238, 0.94));
+  box-shadow: 0 30px 64px -30px rgba(6, 40, 33, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  animation: vibe-cal-rise 0.3s var(--ease-out);
+}
+@keyframes vibe-cal-rise { from { opacity: 0; transform: translateY(14px) scale(0.985) } to { opacity: 1; transform: none } }
+
+.vibe-cal__head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.vibe-cal__title {
+  flex: 1;
+  font-family: var(--font-display);
+  font-size: 19px;
+  color: var(--ink, #0d4f42);
+  letter-spacing: 0.01em;
+}
+.vibe-cal__nav, .vibe-cal__close {
+  width: 32px; height: 32px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 11px;
+  background: rgba(13, 110, 91, 0.08);
+  color: var(--primary, #0d6e5b);
+  font-size: 15px; cursor: pointer;
+  transition: background 0.18s var(--ease-out), transform 0.18s var(--ease-out);
+}
+.vibe-cal__nav:hover, .vibe-cal__close:hover { background: rgba(13, 110, 91, 0.16); }
+.vibe-cal__nav:active, .vibe-cal__close:active { transform: scale(0.94); }
+.vibe-cal__nav[disabled] { opacity: 0.3; cursor: default; }
+.vibe-cal__close { margin-left: auto; background: rgba(13, 110, 91, 0.1); font-size: 17px; }
+.vibe-cal__back {
+  border: 0; border-radius: 999px; padding: 4px 10px;
+  background: rgba(13, 110, 91, 0.1);
+  color: var(--primary, #0d6e5b);
+  font-size: 12px; cursor: pointer;
+}
+
+.vibe-cal__wk, .vibe-cal__grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.vibe-cal__wk { margin-bottom: 4px; }
+.vibe-cal__wk span {
+  text-align: center; font-size: 11px; letter-spacing: 0.08em;
+  color: rgba(13, 79, 66, 0.5); padding: 2px 0;
+}
+.vibe-cal__cell {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--ink, #123c33);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 0.16s var(--ease-out), color 0.16s var(--ease-out), transform 0.16s var(--ease-out);
+}
+.vibe-cal__cell:hover { background: rgba(13, 110, 91, 0.08); }
+.vibe-cal__cell:active { transform: scale(0.94); }
+.vibe-cal__cell.is-out { color: rgba(18, 60, 51, 0.26); }
+.vibe-cal__cell.is-today { background: rgba(13, 110, 91, 0.12); font-weight: 600; }
+.vibe-cal__cell.is-sel { background: var(--primary, #0d6e5b); color: #fff; }
+.vibe-cal__cell.is-sel .vibe-cal__dot { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.9); }
+.vibe-cal__dots { display: flex; gap: 3px; height: 5px; align-items: center; }
+.vibe-cal__dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.vibe-cal__dot--expense { background: #0d6e5b; }
+.vibe-cal__dot--event { background: #c99321; }
+.vibe-cal__dot--task { background: #2f6fd0; }
+.vibe-cal__dot--pause { background: #8b6fd0; }
+
+.vibe-cal__day { margin-top: 14px; padding-top: 13px; border-top: 1px dashed rgba(13, 110, 91, 0.22); }
+.vibe-cal__dayhead { display: flex; align-items: baseline; gap: 8px; margin-bottom: 9px; }
+.vibe-cal__dayhead b { font-size: 14px; color: var(--ink, #123c33); }
+.vibe-cal__dayhead small { font-size: 12px; color: rgba(18, 60, 51, 0.55); }
+.vibe-cal__empty { font-size: 12.5px; color: rgba(18, 60, 51, 0.5); padding: 6px 0 2px; }
+.vibe-cal__row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; margin-bottom: 6px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  font-size: 13px;
+}
+.vibe-cal__row i { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.vibe-cal__row b { font-weight: 500; }
+.vibe-cal__row span { flex: 1; color: rgba(18, 60, 51, 0.62); font-size: 12px; }
+.vibe-cal__row em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--primary, #0d6e5b); font-weight: 600; }
+.vibe-cal__sum {
+  display: flex; justify-content: space-between;
+  margin-top: 8px; padding-top: 8px;
+  border-top: 1px solid rgba(13, 110, 91, 0.12);
+  font-size: 12.5px; color: rgba(18, 60, 51, 0.6);
+}
+.vibe-cal__sum b { color: var(--primary, #0d6e5b); font-variant-numeric: tabular-nums; }
+
+.vibe-calbtn {
+  display: inline-flex; align-items: center; gap: 5px;
+  height: 34px; padding: 0 11px;
+  border: 0; border-radius: 12px;
+  background: rgba(13, 110, 91, 0.09);
+  color: var(--primary, #0d6e5b);
+  font-size: 12px; cursor: pointer;
+  transition: background 0.18s var(--ease-out), transform 0.18s var(--ease-out);
+}
+.vibe-calbtn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.vibe-calbtn:hover { background: rgba(13, 110, 91, 0.16); }
+.vibe-calbtn:active { transform: scale(0.95); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-cal.is-on, .vibe-cal__card { animation: none; }
+}
