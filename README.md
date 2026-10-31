@@ -78,3 +78,48 @@ node tools/probe-backend.mjs --base https://example.com/api/v1 --origin http://l
 ## License
 
 [MIT](./LICENSE)
+
+## 备份与迁移
+
+### 页面内导出 / 导入
+
+「我的 → 本地数据 → 导出备份」会打开备份面板，里面是完整的 JSON，提供四种取用方式：
+
+| 方式 | 适用 |
+| --- | --- |
+| 下载 .json | 桌面浏览器、安卓 Chrome |
+| 系统分享 | iOS Safari（存到「文件」App）、安卓分享面板 |
+| 复制内容 | 任何浏览器，粘到记事本再存成 `.json` |
+| 直接长按文本框 | 兜底，用于内嵌浏览器 |
+
+之所以不用单一 `<a download>`：iOS Safari 与部分内嵌浏览器（微信、部分厂商浏览器）会**静默忽略**未挂载到 DOM 的 `<a download>`，点了没有任何反应——这正是「导不出数据」的原因。现在下载链接会真正挂到 `document` 上，并且始终保留「复制内容」这条不依赖浏览器下载能力的退路。
+
+导入时会先校验文件（非法 JSON / 不是备份文件都会有人话提示），再用确认框显示「支出 N 笔 · 计划 M 条 · 冷静期 K 个」，确认后才覆盖，并同时刷新首页 / 今日 / 安全 / 我的四个屏幕。备份格式：
+
+```json
+{ "schemaVersion": 2, "app": "智汇金 · 钱包天气预报",
+  "exportedAt": "…", "counts": { "expenses": 3, "tasks": 2 },
+  "data": { "schemaVersion": 1, "profile": {…}, "period": {…},
+            "expenses": […], "tasks": {…}, "pauses": […], "learning": […] } }
+```
+
+导入同时兼容 `schemaVersion` 1 与 2，也兼容直接丢一个裸 `state` 对象。
+
+### 把本地备份灌进后端
+
+后端接口就绪后，用 `tools/import-backup.mjs` 一次性迁移：
+
+```bash
+node tools/import-backup.mjs \
+  --file zhihuijin-backup-2026-10-31.json \
+  --base https://nlxroaosaoyi.sealoshzh.site/api/v1 \
+  --email me@example.com --password 'Passw0rd!'
+```
+
+- 自动处理 `GET /csrf` → 登录（失败则注册）→ `POST /onboarding`（预算 / 余额 / 到账日 / 消费习惯）→ 逐条 `POST /expenses`（带 `Idempotency-Key: import-<sha1>`，重复跑不会写两份）。
+- `/today-plan` 目前后端仍返回 500，所以计划条目导出成 `tasks-<日期>.json`，接口修好后可直接回灌。
+- 先看会发生什么：加 `--dry-run`（完全不联网，只打印请求体）。
+- 已有 token：改用 `--token <jwt>`；要 CI 用：`--json`。
+- 字段做了容错：`amountCents` / `amount`（元）/ `money` 都认，`date` 缺失时用今天；400 的响应体会原样打印，按提示改 `postExpense` 的 body 即可。
+
+退出码：`0` 全成功，`1` 有失败项，`2` 参数或文件有问题。

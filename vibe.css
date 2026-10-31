@@ -2523,3 +2523,77 @@ button:active, .tab:active, .quick:active { transform: scale(.985); }
   .date-field.open .calendar-popover { animation: none !important; }
   .pause-count__ring { transition: none !important; }
 }
+
+/* ============================================================================
+   29 备份面板：导出 / 复制 / 系统分享（手机端不再依赖 a[download]）
+   ========================================================================== */
+.vibe-backup {
+  position: fixed;
+  inset: 0;
+  z-index: 9995;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(6, 26, 22, .52);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+}
+.vibe-backup.open { display: flex; animation: vibe-backup-in .24s var(--ease-out) both; }
+@keyframes vibe-backup-in { from { opacity: 0 } to { opacity: 1 } }
+
+.vibe-backup__card {
+  width: min(100%, 400px);
+  max-height: min(84vh, 720px);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border-radius: 24px;
+  background: linear-gradient(160deg, #ffffff, #f1f8f4);
+  box-shadow: 0 30px 70px -30px rgba(6, 32, 26, .55), inset 0 1px 0 rgba(255, 255, 255, .9);
+  animation: vibe-backup-rise .3s var(--ease-out) both;
+}
+@keyframes vibe-backup-rise { from { transform: translateY(14px) scale(.97) } to { transform: none } }
+
+.vibe-backup__card h2 { margin: 0; font-size: 18px; letter-spacing: -.2px; color: var(--ink); }
+.vibe-backup__hint { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+.vibe-backup__hint b { color: var(--primary); font-weight: 600; word-break: break-all; }
+
+.vibe-backup__text {
+  flex: 1;
+  min-height: 150px;
+  max-height: 40vh;
+  padding: 10px 11px;
+  border: 1px solid rgba(13, 110, 91, .18);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, .82);
+  color: var(--ink-2, #24463c);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  line-height: 1.5;
+  resize: none;
+  -webkit-overflow-scrolling: touch;
+}
+.vibe-backup__text:focus { outline: none; border-color: rgba(13, 110, 91, .48); box-shadow: 0 0 0 3px rgba(13, 110, 91, .12); }
+
+.vibe-backup__acts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.vibe-backup__acts button {
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .16s var(--ease-out), box-shadow .16s var(--ease-out);
+}
+.vibe-backup__acts button:active { transform: scale(.97); }
+
+.vibe-backup__summary { margin: 0; font-size: 11.5px; color: var(--muted); }
+.vibe-backup__state { margin: 0; font-size: 12px; font-weight: 600; }
+.vibe-backup__state[data-tone="ok"] { color: var(--primary); }
+.vibe-backup__state[data-tone="bad"] { color: var(--danger); }
+
+@media (prefers-reduced-motion: reduce) {
+  .vibe-backup.open, .vibe-backup__card { animation: none; }
+}
