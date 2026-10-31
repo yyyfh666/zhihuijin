@@ -179,6 +179,8 @@
         /* 后端在 /csrf、register、refresh、logout 之后都会轮换 CSRF，跨端口读不到 Cookie，
            所以一律以响应 JSON 里的 data.csrfToken 为准 */
         if (body && body.data && body.data.csrfToken) { csrfToken = body.data.csrfToken; csrfChecked = true; }
+        /* 后端有的接口用 message、有的用 msg（例如 CSRF_FAILED），统一出一个 message 供上层显示 */
+        if (body && !body.message && body.msg) { body.message = body.msg; }
         return { ok: res.ok, status: res.status, body: body };
       }).catch(function () { return { ok: res.ok, status: res.status, body: {} }; });
     });
