@@ -1841,7 +1841,70 @@
     ];
 
     // 知识卡与题库分开：q1..q100 是答题用的题库，不能当成知识卡渲染到安全雷达列表里
-    const knowledgeCards = cards.filter((card) => !/^q\d+$/.test(card.id));
+    let knowledgeCards = cards.filter((card) => !/^q\d+$/.test(card.id));
+    let knowledgeSynced = false;
+
+    /* ---------- 远程知识库（失败静默回退到内置 10 张卡） ---------- */
+    const KB_CATEGORY_ALIAS = { "基础金融素养": "基础素养", "求助与处置": "求助处置" };
+    const KB_LEVEL = { basic: "基础", intermediate: "进阶", advanced: "挑战" };
+
+    function mapRemoteCard(raw) {
+      const first = Array.isArray(raw.sources) && raw.sources[0] ? raw.sources[0] : null;
+      const sourceText = first
+        ? [first.publisher, first.basis].filter(Boolean).join(" · ")
+        : "智汇金知识库";
+      const category = KB_CATEGORY_ALIAS[raw.categoryName] || raw.categoryName || "校园金融安全";
+      return {
+        id: `kb-${raw.id}`,
+        title: raw.title || "",
+        category,
+        tags: Array.isArray(raw.tags) && raw.tags.length ? raw.tags : [category],
+        scene: raw.scene || "",
+        signals: Array.isArray(raw.riskSignals) && raw.riskSignals.length ? raw.riskSignals : [raw.title || ""],
+        actions: Array.isArray(raw.correctActions) && raw.correctActions.length ? raw.correctActions : ["先停下来核实"],
+        avoid: Array.isArray(raw.avoidActions) ? raw.avoidActions : [],
+        source: sourceText,
+        level: KB_LEVEL[raw.difficulty] || "进阶",
+        remote: true
+      };
+    }
+
+    function withTimeout(promise, ms) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("kb_timeout")), ms))
+      ]);
+    }
+
+    async function syncKnowledgeFromServer() {
+      const api = window.zhjApi;
+      if (!api || !api.post) return false;
+      try {
+        const anon = await withTimeout(api.post("/auth/anonymous", {}), 5000);
+        const token = anon && anon.body && anon.body.data && anon.body.data.accessToken;
+        if (!anon || !anon.ok || !token) return false;
+        api.setToken(token);
+        const res = await withTimeout(api.get("/knowledge/cards?page=1&pageSize=100"), 6000);
+        const items = res && res.body && res.body.data && res.body.data.items;
+        if (!res.ok || !Array.isArray(items) || !items.length) return false;
+        const mapped = items.map(mapRemoteCard).filter((card) => card.title);
+        if (!mapped.length) return false;
+        // 同 id 只留一份，重复同步不会把列表撑爆
+        const seen = new Set();
+        cards.slice().forEach((card) => { if (card.remote) seen.add(card.id); });
+        mapped.forEach((card) => {
+          if (seen.has(card.id)) return;
+          seen.add(card.id);
+          cards.push(card);
+        });
+        knowledgeCards = cards.filter((card) => !/^q\d+$/.test(card.id));
+        knowledgeSynced = true;
+        if (byId("knowledgeList")) renderKnowledgeList();
+        return true;
+      } catch (error) {
+        return false;
+      }
+    }
 
     const scenarios = [
       {
@@ -2820,7 +2883,7 @@
         <h2>${escapeHtml(card.title)}</h2>
         <p class="lead">场景：${escapeHtml(card.scene)}</p>
         <div class="detail-block"><h3>你需要注意的信号</h3><ul>${card.signals.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
-        <div class="detail-block"><h3>现在可以做的3件事</h3><ul>${card.actions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
+        <div class="detail-block"><h3>现在可以做的事</h3><ul>${card.actions.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
         <div class="detail-block"><h3>不要做什么</h3><ul>${card.avoid.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul></div>
         <div class="source">来源：${escapeHtml(card.source)}</div>
       </div>`;
@@ -3979,6 +4042,11 @@
     } else {
       showScreen("onboarding");
     }
+
+    // 远程知识库：首屏渲染完再拉，拿到就替换内置卡片，拿不到就继续用内置的
+    window.addEventListener("load", () => {
+      setTimeout(() => { syncKnowledgeFromServer(); }, 800);
+    });
   </script>
   <script src="api-config.js"></script>
   <script src="api.js"></script>
