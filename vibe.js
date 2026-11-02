@@ -1549,7 +1549,7 @@
     var nodes = entry.querySelectorAll("span, small, p");
     for (var i = 0; i < nodes.length; i++) {
       var tx = (nodes[i].textContent || "").trim();
-      if (tx && tx !== "情景训练" && tx.length < 24) { nodes[i].textContent = "从 100 题里抽 10 道"; break; }
+      if (tx && tx !== "情景训练" && tx.length < 24) { nodes[i].textContent = "4 道情景题，练一次判断"; break; }
     }
     if (!small) { /* 没有副标题就保持原样 */ }
   }
