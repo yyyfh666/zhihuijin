@@ -7,7 +7,8 @@
      POST {BASE}/auth/login      {email,password,rememberMe?}
      POST {BASE}/auth/refresh    需刷新 Cookie + CSRF 头
      GET  {BASE}/me              需 Authorization: Bearer
-   跨域白名单只信任 http://localhost:5173 与 http://127.0.0.1:5173，
+   线上实例：ifgxxfqiahec.sealoshzh.site（旧实例 nlxroaosaoyi 已失效，勿再用）。
+   跨域白名单：https://yyyfh666.github.io 与 http://127.0.0.1:5173 均放行。
    三种改法：
      1) 改下面 DEFAULT；
      2) 地址栏覆盖 index.html?api=https://其他域名/api （访问一次即记住）；
@@ -18,8 +19,8 @@
   "use strict";
   var KEY = "zhj:apiBase";
   var KEY_SCHEMA = "zhj:apiBaseSchema";
-  var SCHEMA = "5";
-  var DEFAULT = "https://nlxroaosaoyi.sealoshzh.site/api/v1";
+  var SCHEMA = "6";
+  var DEFAULT = "https://ifgxxfqiahec.sealoshzh.site/api/v1";
 
   function clean(url) {
     return String(url || "").trim().replace(/\/+$/, "");

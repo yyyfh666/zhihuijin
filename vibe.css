@@ -181,6 +181,18 @@ body {
   line-height: 1.7;
 }
 
+.remote-state {
+  margin: 2px 0 14px;
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.remote-state[data-state="online"] { color: #1f7a5c; }
+
+.remote-state[data-state="offline"] { color: #b4632c; }
+
 .section-head h2 {
   font-family: var(--font-display);
   font-weight: 400;

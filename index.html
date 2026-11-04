@@ -1405,7 +1405,8 @@
       <section class="screen" id="profileScreen">
         <p class="eyebrow">设置、演示与数据</p>
         <h1 class="page-title">我的</h1>
-        <p class="page-sub">本地预览版不会上传你的生活费数据。</p>
+        <p class="page-sub">预算和支出先存在这台设备，再同步到后端；连不上时照常能用。</p>
+        <p class="remote-state" id="remoteState" data-state="idle">尚未同步</p>
         <div class="profile-summary" id="profileSummary"></div>
         <div class="profile-section">
           <h2>交互动效</h2>
@@ -1876,15 +1877,125 @@
       ]);
     }
 
-    async function syncKnowledgeFromServer() {
+    /* ===== 后端同步：本地先写，后台再推一份 =========================
+       原则：后端永远是可选增强。连不上时页面照常可用，「我的」页标明"仅本地"。
+       字段口径为 2026-11 实测（后端会做严格校验）：
+         POST /onboarding {monthlyBudgetCents, fixedExpenseCents, nextIncomeDate, spendingProfile}
+         POST /expenses   {amountCents, category, date, note} + Idempotency-Key
+       分类必须是 food / transport / study / online / entertainment / daily / other。 */
+    const REMOTE_CATEGORY = {
+      "食堂": "food",
+      "交通": "transport",
+      "学习": "study",
+      "网购": "online",
+      "娱乐": "entertainment",
+      "日用": "daily",
+      "其他": "other"
+    };
+    let remoteSessionPromise = null;
+
+    function remoteApi() {
       const api = window.zhjApi;
-      if (!api || !api.post) return false;
-      try {
-        const anon = await withTimeout(api.post("/auth/anonymous", {}), 5000);
-        const token = anon && anon.body && anon.body.data && anon.body.data.accessToken;
-        if (!anon || !anon.ok || !token) return false;
+      return api && api.base && api.base() ? api : null;
+    }
+
+    function markRemote(patch) {
+      state.remote = Object.assign({ userId: null, lastSyncAt: 0, pushed: 0, error: "" }, state.remote || {}, patch);
+      saveState();
+      renderRemoteState();
+    }
+
+    /* 匿名会话只建一次；token 由 api.js 放在内存里，不落 localStorage */
+    function ensureRemoteSession() {
+      if (remoteSessionPromise) return remoteSessionPromise;
+      remoteSessionPromise = (async () => {
+        const api = remoteApi();
+        if (!api) throw new Error("no_api");
+        if (api.token) return api.token;
+        const res = await withTimeout(api.post("/auth/anonymous", {}), 15000);
+        const data = (res && res.body && res.body.data) || {};
+        const token = data.accessToken || data.access_token;
+        if (!res.ok || !token) throw new Error((res.body && res.body.message) || "anonymous_failed");
         api.setToken(token);
-        const res = await withTimeout(api.get("/knowledge/cards?page=1&pageSize=100"), 6000);
+        /* 后端在 /auth/anonymous 之后会轮换 zhj_csrf，必须重新取一份，
+           否则随后的写请求会被 CSRF 校验挡下（403 CSRF_FAILED） */
+        try { await withTimeout(api.csrf(), 12000); } catch (e) {}
+        if (data.user && data.user.id) markRemote({ userId: data.user.id, error: "" });
+        return token;
+      })().catch((error) => {
+        remoteSessionPromise = null;
+        markRemote({ error: "连不上后端：" + (error.message || "网络错误") });
+        throw error;
+      });
+      return remoteSessionPromise;
+    }
+
+    async function pushOnboarding(profile) {
+      try {
+        await ensureRemoteSession();
+        const api = remoteApi();
+        const fixedCents = (profile.fixedExpensesCents || []).reduce((sum, item) => sum + (item.amountCents || 0), 0);
+        const res = await withTimeout(api.post("/onboarding", {
+          monthlyBudgetCents: profile.monthlyBudgetCents,
+          fixedExpenseCents: fixedCents,
+          nextIncomeDate: profile.nextIncomeDate,
+          spendingProfile: profile.spendingProfile
+        }, { idempotencyKey: `onboarding-${profile.nextIncomeDate}-${profile.monthlyBudgetCents}` }), 15000);
+        const already = /ALREADY|CONFLICT|EXISTS/i.test(JSON.stringify(res.body || {}));
+        const ok = res.ok || already;
+        markRemote({ lastSyncAt: ok ? Date.now() : 0, error: ok ? "" : ((res.body && res.body.message) || "预算同步失败") });
+        return ok;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    async function pushExpense(record) {
+      try {
+        await ensureRemoteSession();
+        const api = remoteApi();
+        const res = await withTimeout(api.post("/expenses", {
+          amountCents: record.amountCents,
+          category: REMOTE_CATEGORY[record.category] || "other",
+          date: record.date,
+          note: record.category
+        }, { idempotencyKey: record.id }), 15000);
+        if (res.ok) {
+          markRemote({ lastSyncAt: Date.now(), pushed: ((state.remote && state.remote.pushed) || 0) + 1, error: "" });
+          return true;
+        }
+        markRemote({ error: (res.body && res.body.message) || "这笔还没同步到后端" });
+        return false;
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function renderRemoteState() {
+      const node = byId("remoteState");
+      if (!node) return;
+      const remote = state.remote || {};
+      if (remote.error) {
+        node.textContent = "仅本地 · " + remote.error;
+        node.dataset.state = "offline";
+        return;
+      }
+      if (remote.lastSyncAt) {
+        const t = new Date(remote.lastSyncAt);
+        node.textContent = `已同步到后端 · ${String(t.getHours()).padStart(2, "0")}:${String(t.getMinutes()).padStart(2, "0")}`;
+        node.dataset.state = "online";
+        return;
+      }
+      node.textContent = "尚未同步";
+      node.dataset.state = "idle";
+    }
+
+    async function syncKnowledgeFromServer() {
+      try {
+        await ensureRemoteSession();
+        const api = remoteApi();
+        if (!api) return false;
+        const res = await withTimeout(api.get("/knowledge/cards?page=1&pageSize=100"), 15000);
         const items = res && res.body && res.body.data && res.body.data.items;
         if (!res.ok || !Array.isArray(items) || !items.length) return false;
         const mapped = items.map(mapRemoteCard).filter((card) => card.title);
@@ -2118,7 +2229,8 @@
         tasks: {},
         learning: [],
         pauses: [],
-        emergency: {}
+        emergency: {},
+        remote: { userId: null, lastSyncAt: 0, pushed: 0, error: "" }
       };
     }
     function loadState() {
@@ -3128,6 +3240,8 @@
           if (rawCents > MAX_AMOUNT_CENTS) notes.push("超出单笔上限，已按上限记");
           if (amountCents > balanceBefore) notes.push(`其中 ${formatMoney(amountCents - balanceBefore)} 超出余额`);
           showToast(notes.length ? `已记录 ${formatMoney(amountCents)}：${notes.join("；")}` : "支出已记录，余额预测已更新");
+          /* 本地已落盘，再异步推一份到后端；失败不打断使用，状态在「我的」页可见 */
+          pushExpense(state.expenses[0]);
         } else {
           const name = byId("recordName").value.trim() || "计划事件";
           state.events.push({ id: `event-${Date.now()}`, name, amountCents, date });
@@ -3224,6 +3338,7 @@
     function renderProfile() {
       const forecast = calculateForecast();
       byId("profileSummary").innerHTML = `<div class="summary-tile"><small>每月生活费</small><strong>${state.profile ? formatMoney(state.profile.monthlyBudgetCents) : "—"}</strong></div><div class="summary-tile"><small>当前余额</small><strong>${formatMoney(state.period.currentBalanceCents)}</strong></div><div class="summary-tile"><small>已记录支出</small><strong>${state.expenses.length} 笔</strong></div><div class="summary-tile"><small>冷静期</small><strong>${state.pauses.length} 个</strong></div>`;
+      renderRemoteState();
     }
     function completeOnboarding() {
       try {
@@ -3244,6 +3359,8 @@
         saveState();
         showScreen("home");
         showToast("预算天气已生成");
+        /* 本地已生效，再异步建后端账户并写入预算（失败不回滚本地） */
+        pushOnboarding(state.profile);
       } catch (error) {
         const field = byId("nextIncome");
         const isDateError = /到账日/.test(error.message);
@@ -4037,6 +4154,7 @@
       setActiveChartPoint(activeChartPoint, false);
     });
 
+    renderRemoteState();
     if (state.profile) {
       showScreen("home");
     } else {
